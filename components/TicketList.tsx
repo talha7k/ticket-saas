@@ -2,23 +2,7 @@
 
 import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
-import { Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
-
-interface Ticket {
-  _id: Id<"tickets">;
-  _creationTime: number;
-  title: string;
-  description: string;
-  price: number;
-  quantity: number;
-  eventDate: string;
-  location: string;
-  category: string;
-  isAvailable: boolean;
-  sellerId: string;
-  createdAt: number;
-}
 
 export default function TicketList() {
   const tickets = useQuery(api.tickets.get);
@@ -35,9 +19,10 @@ export default function TicketList() {
           category,
           isAvailable,
           sellerId,
-          quantity,
+          totalQuantity,
+          availableQuantity,
           description,
-        }: Ticket) => (
+        }) => (
           <Link
             key={_id}
             href={`/ticket/${_id}`}
@@ -50,7 +35,10 @@ export default function TicketList() {
             <p>Category: {category}</p>
             <p>Available: {isAvailable ? "Yes" : "No"}</p>
             <p>Seller ID: {sellerId}</p>
-            <p>Quantity: {quantity}</p>
+            <p>
+              Available Tickets: {availableQuantity} / {totalQuantity}
+            </p>
+
             <p>{description}</p>
           </Link>
         )
