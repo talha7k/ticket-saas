@@ -1,10 +1,13 @@
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import Link from "next/link";
 
 function Header() {
   return (
     <header className="flex items-center justify-between p-4 border-b">
       <div>
-        <h1 className="font-bold">Ticketing App</h1>
+        <Link href="/" className="font-bold">
+          Ticketing App
+        </Link>
       </div>
 
       <div>
