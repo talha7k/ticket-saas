@@ -25,7 +25,6 @@ export const updateOrCreateUserStripeConnectId = mutation({
       await ctx.db.insert("users", {
         userId: args.userId,
         stripeConnectId: args.stripeConnectId,
-        createdAt: Date.now(),
       });
       return;
     }

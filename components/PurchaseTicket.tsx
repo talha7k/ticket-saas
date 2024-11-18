@@ -1,63 +1,63 @@
 "use client";
 
 import { api } from "@/convex/_generated/api";
-import { useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { Id } from "@/convex/_generated/dataModel";
 import { useEffect, useState } from "react";
 
 export default function PurchaseTicket({
-  ticketId,
+  eventId,
   userId,
+  waitingListId,
   offerExpiresAt,
 }: {
-  ticketId: string;
+  eventId: Id<"events">;
   userId: string;
+  waitingListId: Id<"waitingList">;
   offerExpiresAt: number;
 }) {
-  const [timeRemaining, setTimeRemaining] = useState<string>("");
-  const ticket = useQuery(api.tickets.getById, { id: ticketId });
+  const purchaseTicket = useMutation(api.events.purchaseTicket);
+  const [timeLeft, setTimeLeft] = useState<string>("");
 
   useEffect(() => {
     const timer = setInterval(() => {
       const now = Date.now();
-      const remaining = offerExpiresAt - now;
+      const diff = offerExpiresAt - now;
 
-      if (remaining <= 0) {
-        setTimeRemaining("Expired");
+      if (diff <= 0) {
+        setTimeLeft("Expired");
         clearInterval(timer);
-        return;
+      } else {
+        const minutes = Math.floor(diff / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        setTimeLeft(`${minutes}:${seconds.toString().padStart(2, "0")}`);
       }
-
-      const minutes = Math.floor(remaining / 60000);
-      const seconds = Math.floor((remaining % 60000) / 1000);
-      setTimeRemaining(`${minutes}:${seconds.toString().padStart(2, "0")}`);
     }, 1000);
 
     return () => clearInterval(timer);
   }, [offerExpiresAt]);
 
-  if (!ticket) return null;
+  const handlePurchase = async () => {
+    try {
+      await purchaseTicket({
+        eventId,
+        userId,
+        waitingListId,
+      });
+    } catch (error) {
+      console.error("Error purchasing ticket:", error);
+    }
+  };
 
   return (
-    <div className="p-6 border rounded-lg shadow-lg max-w-md mx-auto">
-      <div className="text-center mb-4">
-        <div className="text-xl font-bold text-blue-600">{timeRemaining}</div>
-        <div className="text-sm text-gray-500">Time remaining to purchase</div>
-      </div>
-
-      <h2 className="text-2xl font-bold mb-4">{ticket.title}</h2>
-      <div className="space-y-2 mb-6">
-        <p className="text-gray-600">{ticket.description}</p>
-        <p className="font-semibold">Price: ${ticket.price}</p>
-        <p>Location: {ticket.location}</p>
-        <p>Date: {new Date(ticket.eventDate).toLocaleDateString()}</p>
-      </div>
-
+    <div className="text-center p-4">
+      <p className="text-lg font-semibold mb-2">
+        Your ticket is ready for purchase!
+      </p>
+      <p className="text-gray-600 mb-4">Time remaining: {timeLeft}</p>
       <button
-        className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition"
-        onClick={() => {
-          // Implement purchase logic here
-          console.log("Purchase ticket");
-        }}
+        onClick={handlePurchase}
+        className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition"
       >
         Purchase Ticket
       </button>

@@ -14,7 +14,7 @@ async function TicketPage({ params }: { params: { id: string } }) {
   return (
     <div>
       TicketPage for {id}
-      <JoinQueue ticketId={id as Id<"tickets">} userId={userId} />
+      <JoinQueue eventId={id as Id<"events">} userId={userId} />
     </div>
   );
 }

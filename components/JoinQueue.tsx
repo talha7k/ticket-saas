@@ -6,30 +6,32 @@ import { Id } from "@/convex/_generated/dataModel";
 import PurchaseTicket from "./PurchaseTicket";
 
 export default function JoinQueue({
-  ticketId,
+  eventId,
   userId,
 }: {
-  ticketId: Id<"tickets">;
+  eventId: Id<"events">;
   userId: string;
 }) {
-  const joinQueue = useMutation(api.waitingList.join);
+  const joinWaitingList = useMutation(api.events.joinWaitingList);
   const queuePosition = useQuery(api.waitingList.getQueuePosition, {
-    ticketId,
+    eventId,
     userId,
   });
 
   const handleJoinQueue = async () => {
     try {
-      const result = await joinQueue({ ticketId, userId });
+      const result = await joinWaitingList({ eventId, userId });
       if (result.success) {
-        console.log("success", result);
-      } else {
-        console.error("Failed to join queue:", result.message);
+        console.log("Successfully joined waiting list");
       }
     } catch (error) {
-      console.error("Error joining queue:", error);
+      console.error("Error joining waiting list:", error);
     }
   };
+
+  if (queuePosition === undefined) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div>
@@ -46,8 +48,9 @@ export default function JoinQueue({
 
       {queuePosition?.status === "offered" && queuePosition.offerExpiresAt && (
         <PurchaseTicket
-          ticketId={ticketId}
+          eventId={eventId}
           userId={userId}
+          waitingListId={queuePosition._id}
           offerExpiresAt={queuePosition.offerExpiresAt}
         />
       )}
