@@ -4,6 +4,7 @@ import { api } from "@/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { Id } from "@/convex/_generated/dataModel";
 import PurchaseTicket from "./PurchaseTicket";
+import { WAITING_LIST_STATUS } from "@/convex/constants";
 
 export default function JoinQueue({
   eventId,
@@ -17,6 +18,8 @@ export default function JoinQueue({
     eventId,
     userId,
   });
+
+  console.log("queuePosition >>>", queuePosition);
 
   const handleJoinQueue = async () => {
     try {
@@ -35,7 +38,7 @@ export default function JoinQueue({
 
   return (
     <div>
-      {queuePosition?.status === "waiting" && (
+      {queuePosition?.status === WAITING_LIST_STATUS.WAITING && (
         <div className="text-center p-4">
           <p className="text-lg font-semibold">
             Your position in queue: {queuePosition.position}
@@ -46,16 +49,18 @@ export default function JoinQueue({
         </div>
       )}
 
-      {queuePosition?.status === "offered" && queuePosition.offerExpiresAt && (
-        <PurchaseTicket
-          eventId={eventId}
-          userId={userId}
-          waitingListId={queuePosition._id}
-          offerExpiresAt={queuePosition.offerExpiresAt}
-        />
-      )}
+      {queuePosition?.status === WAITING_LIST_STATUS.OFFERED &&
+        queuePosition.offerExpiresAt && (
+          <PurchaseTicket
+            eventId={eventId}
+            userId={userId}
+            waitingListId={queuePosition._id}
+            offerExpiresAt={queuePosition.offerExpiresAt}
+          />
+        )}
 
-      {(!queuePosition || queuePosition.status === "expired") && (
+      {(!queuePosition ||
+        queuePosition.status === WAITING_LIST_STATUS.EXPIRED) && (
         <button
           onClick={handleJoinQueue}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"

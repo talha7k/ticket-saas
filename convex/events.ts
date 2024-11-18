@@ -1,6 +1,9 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import { DURATIONS, WAITING_LIST_STATUS } from "./constants";
+import { internal } from "./_generated/api";
+import { processQueue } from "./waitingList";
 
 export const get = query({
   args: {},
@@ -62,38 +65,67 @@ export const checkAvailability = query({
 export const joinWaitingList = mutation({
   args: { eventId: v.id("events"), userId: v.string() },
   handler: async (ctx, { eventId, userId }) => {
-    // Check if user is already in waiting list for this event
+    // Check if user is already in waiting list for this event (excluding expired entries)
     const existingEntry = await ctx.db
       .query("waitingList")
       .withIndex("by_event_status", (q) => q.eq("eventId", eventId))
       .collect()
-      .then((entries) => entries.find((e) => e.userId === userId));
+      .then((entries) =>
+        entries.find(
+          (e) => e.userId === userId && e.status !== WAITING_LIST_STATUS.EXPIRED
+        )
+      );
 
     if (existingEntry) {
       throw new Error("Already in waiting list for this event");
     }
 
-    // Check event exists and has availability
+    // Check event exists
     const event = await ctx.db.get(eventId);
     if (!event) throw new Error("Event not found");
 
+    // Get current availability
     const { available } = await checkAvailability(ctx, { eventId });
-    if (!available) {
-      throw new Error("No tickets available for this event");
+
+    const now = Date.now();
+
+    // Always insert an entry, but with different status based on availability
+    if (available) {
+      // Create the offer
+      const waitingListId = await ctx.db.insert("waitingList", {
+        eventId,
+        userId,
+        status: WAITING_LIST_STATUS.OFFERED,
+        offerExpiresAt: now + DURATIONS.TICKET_OFFER,
+      });
+
+      // Schedule the expiration
+      await ctx.scheduler.runAfter(
+        DURATIONS.TICKET_OFFER,
+        internal.waitingList.expireOffer,
+        {
+          waitingListId,
+          eventId,
+        }
+      );
+    } else {
+      // Add to waiting list without an offer
+      await ctx.db.insert("waitingList", {
+        eventId,
+        userId,
+        status: WAITING_LIST_STATUS.WAITING,
+      });
     }
 
-    // Add to waiting list with immediate offer
-    const now = Date.now();
-    const OFFER_DURATION = 15 * 60 * 1000; // 15 minutes
-
-    await ctx.db.insert("waitingList", {
-      eventId,
-      userId,
-      status: "offered",
-      offerExpiresAt: now + OFFER_DURATION,
-    });
-
-    return { success: true };
+    return {
+      success: true,
+      status: available
+        ? WAITING_LIST_STATUS.OFFERED
+        : WAITING_LIST_STATUS.WAITING,
+      message: available
+        ? "Ticket offered - you have 15 minutes to purchase"
+        : "Added to waiting list - you'll be notified when a ticket becomes available",
+    };
   },
 });
 
@@ -131,28 +163,21 @@ export const purchaseTicket = mutation({
   },
   handler: async (ctx, { eventId, userId, waitingListId }) => {
     const waitingListEntry = await ctx.db.get(waitingListId);
-    if (!waitingListEntry || waitingListEntry.status !== "offered") {
-      throw new Error("Invalid or expired offer");
-    }
 
-    const now = Date.now();
-    if ((waitingListEntry.offerExpiresAt ?? 0) <= now) {
-      throw new Error("Offer has expired");
-    }
-
-    // Create ticket
+    // If purchase successful, immediately process queue for next person
     await ctx.db.insert("tickets", {
       eventId,
       userId,
-      purchasedAt: now,
+      purchasedAt: Date.now(),
       status: "valid",
     });
 
-    // Update waiting list entry
     await ctx.db.patch(waitingListId, {
-      status: "purchased",
-      purchasedAt: now,
+      status: WAITING_LIST_STATUS.PURCHASED,
     });
+
+    // Immediately process queue for next person
+    await processQueue(ctx, { eventId });
   },
 });
 

@@ -76,52 +76,6 @@ export const checkTicketAvailability = query({
   },
 });
 
-// Join waiting list
-export const joinWaitingList = mutation({
-  args: { eventId: v.id("events"), userId: v.string() },
-  handler: async (ctx, { eventId, userId }) => {
-    // Check if user is already in waiting list
-    const existingEntry = await ctx.db
-      .query("waitingList")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .filter((q) => q.eq(q.field("eventId"), eventId))
-      .first();
-
-    if (existingEntry) {
-      throw new Error("Already in waiting list");
-    }
-
-    // Check availability
-    const { available } = await ctx.db
-      .query("tickets")
-      .withIndex("by_event", (q) => q.eq("eventId", eventId))
-      .collect()
-      .then(async (tickets) => {
-        const purchasedCount = tickets.filter(
-          (t) => t.status === "valid" || t.status === "used"
-        ).length;
-        const event = await ctx.db.get(eventId);
-        if (!event) throw new Error("Event not found");
-        return { available: purchasedCount < event.totalTickets };
-      });
-
-    if (!available) {
-      throw new Error("No tickets available");
-    }
-
-    // Add to waiting list with immediate offer
-    const now = Date.now();
-    const OFFER_DURATION = 15 * 60 * 1000; // 15 minutes
-
-    await ctx.db.insert("waitingList", {
-      eventId,
-      userId,
-      status: "offered",
-      offerExpiresAt: now + OFFER_DURATION,
-    });
-  },
-});
-
 // Clean up expired offers
 export const cleanupExpiredOffers = mutation({
   args: {},

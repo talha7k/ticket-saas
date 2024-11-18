@@ -1,6 +1,24 @@
 import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import { DURATIONS, WAITING_LIST_STATUS, TICKET_STATUS } from "./constants";
+
+// Helper function at the top of the file
+function groupByEvent(
+  offers: Array<{ eventId: Id<"events">; _id: Id<"waitingList"> }>
+) {
+  return offers.reduce(
+    (acc, offer) => {
+      const eventId = offer.eventId;
+      if (!acc[eventId]) {
+        acc[eventId] = [];
+      }
+      acc[eventId].push(offer);
+      return acc;
+    },
+    {} as Record<Id<"events">, typeof offers>
+  );
+}
 
 // Get user's position in queue
 export const getQueuePosition = query({
@@ -9,15 +27,17 @@ export const getQueuePosition = query({
     userId: v.string(),
   },
   handler: async (ctx, { eventId, userId }) => {
-    const entry = await ctx.db
+    // Get all entries for this user/event and take the latest one
+    const entries = await ctx.db
       .query("waitingList")
-      .withIndex("by_event_status", (q) => q.eq("eventId", eventId))
-      .filter((q) => q.eq(q.field("userId"), userId))
-      .first();
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    const entry = entries.sort((a, b) => b._creationTime - a._creationTime)[0];
 
     if (!entry) return null;
 
-    // Get total number of people ahead in line (with status "waiting" or "offered")
+    // Get total number of people ahead in line
     const peopleAhead = await ctx.db
       .query("waitingList")
       .withIndex("by_event_status", (q) => q.eq("eventId", eventId))
@@ -25,8 +45,8 @@ export const getQueuePosition = query({
         q.and(
           q.lt(q.field("_creationTime"), entry._creationTime),
           q.or(
-            q.eq(q.field("status"), "waiting"),
-            q.eq(q.field("status"), "offered")
+            q.eq(q.field("status"), WAITING_LIST_STATUS.WAITING),
+            q.eq(q.field("status"), WAITING_LIST_STATUS.OFFERED)
           )
         )
       )
@@ -64,8 +84,11 @@ export const processQueue = mutation({
           .collect()
           .then(
             (tickets) =>
-              tickets.filter((t) => t.status === "valid" || t.status === "used")
-                .length
+              tickets.filter(
+                (t) =>
+                  t.status === TICKET_STATUS.VALID ||
+                  t.status === TICKET_STATUS.USED
+              ).length
           );
 
         // Count active offers
@@ -73,7 +96,7 @@ export const processQueue = mutation({
         const activeOffers = await ctx.db
           .query("waitingList")
           .withIndex("by_event_status", (q) =>
-            q.eq("eventId", eventId).eq("status", "offered")
+            q.eq("eventId", eventId).eq("status", WAITING_LIST_STATUS.OFFERED)
           )
           .collect()
           .then(
@@ -86,66 +109,72 @@ export const processQueue = mutation({
         };
       });
 
-    if (availableSpots <= 0) return; // No spots available
+    if (availableSpots <= 0) return;
 
     // Find next waiting users up to available spots
     const waitingUsers = await ctx.db
       .query("waitingList")
       .withIndex("by_event_status", (q) =>
-        q.eq("eventId", eventId).eq("status", "waiting")
+        q.eq("eventId", eventId).eq("status", WAITING_LIST_STATUS.WAITING)
       )
       .order("asc")
       .take(availableSpots);
 
     // Offer tickets to these users
     const now = Date.now();
-    const OFFER_DURATION = 15 * 60 * 1000; // 15 minutes
-
     for (const user of waitingUsers) {
       await ctx.db.patch(user._id, {
-        status: "offered",
-        offerExpiresAt: now + OFFER_DURATION,
+        status: WAITING_LIST_STATUS.OFFERED,
+        offerExpiresAt: now + DURATIONS.TICKET_OFFER,
       });
     }
   },
 });
 
-// Clean up expired offers and process queue
+// Scheduled job for single offer expiration
+export const expireOffer = internalMutation({
+  args: {
+    waitingListId: v.id("waitingList"),
+    eventId: v.id("events"),
+  },
+  handler: async (ctx, { waitingListId, eventId }) => {
+    const offer = await ctx.db.get(waitingListId);
+    if (!offer || offer.status !== WAITING_LIST_STATUS.OFFERED) return;
+
+    await ctx.db.patch(waitingListId, {
+      status: WAITING_LIST_STATUS.EXPIRED,
+    });
+
+    await processQueue(ctx, { eventId });
+  },
+});
+
+// Cleanup expired offers
 export const cleanupExpiredOffers = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
-
-    // Find expired offers
     const expiredOffers = await ctx.db
       .query("waitingList")
-      .withIndex("by_expiry", (q) => q.lt("offerExpiresAt", now))
-      .filter((q) => q.eq(q.field("status"), "offered"))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("status"), WAITING_LIST_STATUS.OFFERED),
+          q.lt(q.field("offerExpiresAt"), now)
+        )
+      )
       .collect();
 
-    // Group expired offers by event
-    const offersByEvent = expiredOffers.reduce(
-      (acc, offer) => {
-        const eventId = offer.eventId;
-        if (!acc[eventId]) {
-          acc[eventId] = [];
-        }
-        acc[eventId].push(offer);
-        return acc;
-      },
-      {} as Record<Id<"events">, typeof expiredOffers>
-    );
+    const grouped = groupByEvent(expiredOffers);
 
-    // Process expired offers by event
-    for (const [eventId, offers] of Object.entries(offersByEvent)) {
-      // Mark offers as expired
-      for (const offer of offers) {
-        await ctx.db.patch(offer._id, {
-          status: "expired",
-        });
-      }
+    for (const [eventId, offers] of Object.entries(grouped)) {
+      await Promise.all(
+        offers.map((offer) =>
+          ctx.db.patch(offer._id, {
+            status: WAITING_LIST_STATUS.EXPIRED,
+          })
+        )
+      );
 
-      // Process queue for this event to fill newly available spots
       await processQueue(ctx, { eventId: eventId as Id<"events"> });
     }
   },
