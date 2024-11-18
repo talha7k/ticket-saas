@@ -33,18 +33,18 @@ export const getQueuePosition = query({
     userId: v.string(),
   },
   handler: async (ctx, { eventId, userId }) => {
-    // Get all entries for this user/event and take the latest one
-    const entries = await ctx.db
+    // Get entry for this specific user and event combination
+    const entry = await ctx.db
       .query("waitingList")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-
-    const entry = entries.sort((a, b) => b._creationTime - a._creationTime)[0];
+      .withIndex("by_user_event", (q) =>
+        q.eq("userId", userId).eq("eventId", eventId)
+      )
+      .filter((q) => q.neq(q.field("status"), WAITING_LIST_STATUS.EXPIRED))
+      .first();
 
     if (!entry) return null;
 
-    // Get total number of people ahead in line by counting entries with earlier creation time
-    // that are either still waiting or have active offers
+    // Get total number of people ahead in line
     const peopleAhead = await ctx.db
       .query("waitingList")
       .withIndex("by_event_status", (q) => q.eq("eventId", eventId))

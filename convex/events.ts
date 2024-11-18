@@ -68,16 +68,14 @@ export const checkAvailability = query({
 export const joinWaitingList = mutation({
   args: { eventId: v.id("events"), userId: v.string() },
   handler: async (ctx, { eventId, userId }) => {
-    // Check if user is already in waiting list for this event (excluding expired entries)
+    // Check if user is already in waiting list for this specific event
     const existingEntry = await ctx.db
       .query("waitingList")
-      .withIndex("by_event_status", (q) => q.eq("eventId", eventId))
-      .collect()
-      .then((entries) =>
-        entries.find(
-          (e) => e.userId === userId && e.status !== WAITING_LIST_STATUS.EXPIRED
-        )
-      );
+      .withIndex("by_user_event", (q) =>
+        q.eq("userId", userId).eq("eventId", eventId)
+      )
+      .filter((q) => q.neq(q.field("status"), WAITING_LIST_STATUS.EXPIRED))
+      .first();
 
     if (existingEntry) {
       throw new Error("Already in waiting list for this event");

@@ -36,11 +36,10 @@ export default defineSchema({
       v.literal("expired")
     ),
     offerExpiresAt: v.optional(v.number()),
-    purchasedAt: v.optional(v.number()),
   })
     .index("by_event_status", ["eventId", "status"])
-    .index("by_user", ["userId"])
-    .index("by_expiry", ["offerExpiresAt"]),
+    .index("by_user_event", ["userId", "eventId"])
+    .index("by_user", ["userId"]),
 
   users: defineTable({
     userId: v.string(),
