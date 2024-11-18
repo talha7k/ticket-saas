@@ -1,40 +1,27 @@
 "use client";
 import { createStripeConnectAccountLink } from "@/app/actions/createStripeConnectAccountLink";
 import { createStripeConnectCustomer } from "@/app/actions/createStripeConnectCustomer";
-import { getStripeConnectAccount } from "@/app/actions/getStripeConnectAccount";
+import { api } from "@/convex/_generated/api";
+import { useUser } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
 
 import { useRouter } from "next/navigation";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 export default function SellerOnboarding() {
   const [accountCreatePending, setAccountCreatePending] = useState(false);
   const [accountLinkCreatePending, setAccountLinkCreatePending] =
     useState(false);
   const [error, setError] = useState(false);
-  const [connectedAccountId, setConnectedAccountId] = useState<string | null>(
-    null
-  );
-  const [isLoading, setIsLoading] = useState(true);
+
   const router = useRouter();
 
-  useEffect(() => {
-    const initializeAccount = async () => {
-      try {
-        const { stripeConnectId } = await getStripeConnectAccount();
-        if (stripeConnectId) {
-          setConnectedAccountId(stripeConnectId);
-        }
-      } catch (error) {
-        setError(true);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const { user } = useUser();
+  const stripeConnectId = useQuery(api.users.getUsersStripeConnectId, {
+    userId: user?.id || "",
+  });
 
-    initializeAccount();
-  }, []);
-
-  if (isLoading) {
+  if (stripeConnectId === undefined) {
     return <div>Loading...</div>;
   }
 
@@ -44,23 +31,21 @@ export default function SellerOnboarding() {
         <h2>Rocket Rides</h2>
       </div>
       <div className="content">
-        {!connectedAccountId && <h2>Get ready for take off</h2>}
-        {!connectedAccountId && (
+        {!stripeConnectId && <h2>Get ready for take off</h2>}
+        {!stripeConnectId && (
           <p>
             Rocket Rides is the world's leading air travel platform: join our
             team of pilots to help people travel faster.
           </p>
         )}
-        {connectedAccountId && (
-          <h2>Add information to start accepting money</h2>
-        )}
-        {connectedAccountId && (
+        {stripeConnectId && <h2>Add information to start accepting money</h2>}
+        {stripeConnectId && (
           <p>
             Matt's Mats partners with Stripe to help you receive payments while
             keeping your personal and bank details secure.
           </p>
         )}
-        {!accountCreatePending && !connectedAccountId && (
+        {!accountCreatePending && !stripeConnectId && (
           <button
             onClick={async () => {
               setAccountCreatePending(true);
@@ -70,9 +55,9 @@ export default function SellerOnboarding() {
                 const { account } = await createStripeConnectCustomer();
                 setAccountCreatePending(false);
 
-                if (account) {
-                  setConnectedAccountId(account);
-                }
+                // if (account) {
+                //   setstripeConnectId(account);
+                // }
               } catch (error) {
                 setError(true);
               }
@@ -81,14 +66,14 @@ export default function SellerOnboarding() {
             Create an account!
           </button>
         )}
-        {connectedAccountId && !accountLinkCreatePending && (
+        {stripeConnectId && !accountLinkCreatePending && (
           <button
             onClick={async () => {
               setAccountLinkCreatePending(true);
               setError(false);
               try {
                 const { url } =
-                  await createStripeConnectAccountLink(connectedAccountId);
+                  await createStripeConnectAccountLink(stripeConnectId);
                 router.push(url);
               } catch (error) {
                 setError(true);
@@ -100,14 +85,14 @@ export default function SellerOnboarding() {
           </button>
         )}
         {error && <p className="error">Something went wrong!</p>}
-        {(connectedAccountId ||
+        {(stripeConnectId ||
           accountCreatePending ||
           accountLinkCreatePending) && (
           <div className="dev-callout">
-            {connectedAccountId && (
+            {stripeConnectId && (
               <p>
                 Your connected account ID is:{" "}
-                <code className="bold">{connectedAccountId}</code>
+                <code className="bold">{stripeConnectId}</code>
               </p>
             )}
             {accountCreatePending && <p>Creating a connected account...</p>}

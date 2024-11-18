@@ -7,6 +7,7 @@ export const getUsersStripeConnectId = query({
     const user = await ctx.db
       .query("users")
       .filter((q) => q.eq(q.field("userId"), args.userId))
+      .filter((q) => q.neq(q.field("stripeConnectId"), undefined))
       .first();
     return user?.stripeConnectId;
   },
@@ -20,7 +21,7 @@ export const updateOrCreateUserStripeConnectId = mutation({
       .filter((q) => q.eq(q.field("userId"), args.userId))
       .first();
 
-    if (!user) {
+    if (!user?.stripeConnectId) {
       await ctx.db.insert("users", {
         userId: args.userId,
         stripeConnectId: args.stripeConnectId,
