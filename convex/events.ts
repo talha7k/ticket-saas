@@ -1,7 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { DURATIONS, WAITING_LIST_STATUS } from "./constants";
+import { DURATIONS, WAITING_LIST_STATUS, TICKET_STATUS } from "./constants";
 import { internal } from "./_generated/api";
 import { processQueue } from "./waitingList";
 
@@ -33,8 +33,11 @@ export const checkAvailability = query({
       .collect()
       .then(
         (tickets) =>
-          tickets.filter((t) => t.status === "valid" || t.status === "used")
-            .length
+          tickets.filter(
+            (t) =>
+              t.status === TICKET_STATUS.VALID ||
+              t.status === TICKET_STATUS.USED
+          ).length
       );
 
     // Count current valid offers
@@ -42,7 +45,7 @@ export const checkAvailability = query({
     const activeOffers = await ctx.db
       .query("waitingList")
       .withIndex("by_event_status", (q) =>
-        q.eq("eventId", eventId).eq("status", "offered")
+        q.eq("eventId", eventId).eq("status", WAITING_LIST_STATUS.OFFERED)
       )
       .collect()
       .then(
@@ -129,31 +132,6 @@ export const joinWaitingList = mutation({
   },
 });
 
-// Clean up expired offers
-export const cleanupExpiredOffers = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const now = Date.now();
-
-    // Get all waiting list entries with status "offered"
-    const expiredOffers = await ctx.db
-      .query("waitingList")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("status"), "offered"),
-          q.lt(q.field("offerExpiresAt"), now)
-        )
-      )
-      .collect();
-
-    for (const offer of expiredOffers) {
-      await ctx.db.patch(offer._id, {
-        status: "expired",
-      });
-    }
-  },
-});
-
 // Purchase ticket
 export const purchaseTicket = mutation({
   args: {
@@ -169,7 +147,7 @@ export const purchaseTicket = mutation({
       eventId,
       userId,
       purchasedAt: Date.now(),
-      status: "valid",
+      status: TICKET_STATUS.VALID,
     });
 
     await ctx.db.patch(waitingListId, {

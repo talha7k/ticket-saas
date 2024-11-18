@@ -2,7 +2,7 @@ import { Doc } from "./_generated/dataModel";
 
 // Time constants in milliseconds
 export const DURATIONS = {
-  TICKET_OFFER: 5 * 60 * 1000, // 5 minutes
+  TICKET_OFFER: 10 * 1000, // 10 seconds
 } as const;
 
 // Status types for better type safety
