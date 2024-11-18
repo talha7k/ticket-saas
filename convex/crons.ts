@@ -5,7 +5,7 @@ const crons = cronJobs();
 
 crons.interval(
   "cleanup-expired-offers",
-  { seconds: 10 }, // Run every 10 seconds
+  { minutes: 1 }, // Run every 1 minute
   internal.waitingList.cleanupExpiredOffers
 );
 
