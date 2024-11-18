@@ -23,12 +23,8 @@ export default defineSchema({
     .searchIndex("search_category", { searchField: "category" }),
 
   users: defineTable({
-    name: v.string(),
-    email: v.string(),
-    // Store purchased ticket IDs
-    purchasedTickets: v.array(v.string()),
-    // Store listed ticket IDs
-    listedTickets: v.array(v.string()),
+    userId: v.string(),
+    stripeConnectId: v.optional(v.string()),
     createdAt: v.number(),
   }),
 
