@@ -19,13 +19,12 @@ export default function SellerOnboarding() {
   const [accountStatus, setAccountStatus] = useState<AccountStatus | null>(
     null
   );
-
   const router = useRouter();
-
   const { user } = useUser();
   const stripeConnectId = useQuery(api.users.getUsersStripeConnectId, {
     userId: user?.id || "",
   });
+
   useEffect(() => {
     if (stripeConnectId) {
       fetchAccountStatus();

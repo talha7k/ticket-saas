@@ -29,7 +29,11 @@ function Header() {
         </SignedIn>
 
         <SignedOut>
-          <SignInButton mode="modal" />
+          <SignInButton mode="modal">
+            <button className="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-200 transition mr-4 border border-gray-300">
+              Sign In
+            </button>
+          </SignInButton>
         </SignedOut>
       </div>
     </header>

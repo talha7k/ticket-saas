@@ -7,8 +7,10 @@ export default async function OnboardingPage() {
 
   if (!userId) {
     return (
-      <div>
-        <h2>You must be signed in to continue</h2>
+      <div className="flex flex-col items-center justify-center gap-4 p-8">
+        <h2 className="text-2xl font-semibold text-gray-800">
+          You must be signed in to continue
+        </h2>
         <SignInButton />
       </div>
     );
