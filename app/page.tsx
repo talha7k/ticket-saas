@@ -1,9 +1,9 @@
-import TicketList from "@/components/TicketList";
+import EventList from "@/components/EventList";
 
 export default function Home() {
   return (
     <div className="">
-      <TicketList />
+      <EventList />
     </div>
   );
 }
