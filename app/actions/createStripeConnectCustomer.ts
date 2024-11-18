@@ -34,13 +34,14 @@ export async function createStripeConnectCustomer() {
     }
   );
 
-  console.log("DEBUG 1", existingStripeConnectId);
   if (existingStripeConnectId) {
     return { account: existingStripeConnectId };
   }
 
   // Create new connect account
-  const account = await stripe.accounts.create({});
+  const account = await stripe.accounts.create({
+    type: "express",
+  });
 
   // Update user with stripe connect id
   await convex.mutation(api.users.updateOrCreateUserStripeConnectId, {

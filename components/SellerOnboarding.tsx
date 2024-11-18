@@ -7,6 +7,7 @@ import { useQuery } from "convex/react";
 
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
+import { createStripeConnectLoginLink } from "@/app/actions/createStripeConnectLoginLink";
 
 export default function SellerOnboarding() {
   const [accountCreatePending, setAccountCreatePending] = useState(false);
@@ -24,6 +25,18 @@ export default function SellerOnboarding() {
   if (stripeConnectId === undefined) {
     return <div>Loading...</div>;
   }
+
+  const handleManageAccount = async () => {
+    try {
+      if (stripeConnectId) {
+        const loginUrl = await createStripeConnectLoginLink(stripeConnectId);
+        window.location.href = loginUrl;
+      }
+    } catch (error) {
+      console.error("Error accessing Stripe Connect portal:", error);
+      // Handle error appropriately
+    }
+  };
 
   return (
     <div className="container">
@@ -111,6 +124,11 @@ export default function SellerOnboarding() {
             </a>
           </p>
         </div>
+        {stripeConnectId && (
+          <button onClick={handleManageAccount} className="mt-4">
+            Manage Stripe Account
+          </button>
+        )}
       </div>
     </div>
   );
