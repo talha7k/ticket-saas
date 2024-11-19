@@ -45,18 +45,6 @@ export default function JoinQueue({
 
   return (
     <div>
-      {queuePosition?.status === WAITING_LIST_STATUS.WAITING &&
-        availability.purchasedCount < availability.totalTickets && (
-          <div className="text-center p-4">
-            <p className="text-lg font-semibold">
-              Your position in queue: {queuePosition.position}
-            </p>
-            <p className="text-gray-600">
-              Please wait while we process your request...
-            </p>
-          </div>
-        )}
-
       {(!queuePosition ||
         queuePosition.status === WAITING_LIST_STATUS.EXPIRED ||
         (queuePosition.status === WAITING_LIST_STATUS.OFFERED &&

@@ -3,7 +3,15 @@
 import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
 import { Id } from "@/convex/_generated/dataModel";
-import { CalendarDays, MapPin, Ticket, Check } from "lucide-react";
+import {
+  CalendarDays,
+  MapPin,
+  Ticket,
+  Check,
+  CircleArrowRight,
+  LoaderCircle,
+  XCircle,
+} from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import PurchaseTicket from "./PurchaseTicket";
@@ -25,48 +33,83 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
     return null;
   }
 
+  const renderQueuePosition = () => {
+    if (!queuePosition || queuePosition.status !== "waiting") return null;
+
+    if (availability.purchasedCount >= availability.totalTickets) {
+      return (
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-center">
+            <Ticket className="w-5 h-5 text-gray-400 mr-2" />
+            <span className="text-gray-600">Event is sold out</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (queuePosition.position === 2) {
+      return (
+        <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-100">
+          <div className="flex items-center">
+            <CircleArrowRight className="w-5 h-5 text-amber-500 mr-2" />
+            <span className="text-amber-700 font-medium">
+              You're next in line! (Queue position: {queuePosition.position})
+            </span>
+          </div>
+          <div className="flex items-center">
+            <LoaderCircle className="w-4 h-4 mr-1 animate-spin text-amber-500" />
+            <span className="text-amber-600 text-sm">Waiting for ticket</span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
+        <div className="flex items-center">
+          <LoaderCircle className="w-4 h-4 mr-2 animate-spin text-blue-500" />
+          <span className="text-blue-700">Queue position</span>
+        </div>
+        <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium">
+          #{queuePosition.position}
+        </span>
+      </div>
+    );
+  };
+
   const renderTicketStatus = () => {
     if (!user) return null;
 
     if (userTicket) {
       return (
-        <div className="mt-4 flex items-center p-3 bg-green-50 rounded-lg border border-green-100">
-          <Check className="w-5 h-5 text-green-600 mr-2" />
-          <span className="text-green-700 font-medium">You have a ticket!</span>
+        <div className="mt-4 flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
+          <div className="flex items-center">
+            <Check className="w-5 h-5 text-green-600 mr-2" />
+            <span className="text-green-700 font-medium">
+              You have a ticket!
+            </span>
+          </div>
+          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+            Confirmed
+          </span>
         </div>
       );
     }
 
     if (queuePosition) {
       return (
-        <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-100">
+        <div className="mt-4">
           {queuePosition.status === "offered" && (
-            <PurchaseTicket
-              eventId={eventId}
-              userId={user?.id ?? ""}
-              waitingListId={queuePosition._id}
-              offerExpiresAt={queuePosition.offerExpiresAt ?? 0}
-            />
+            <PurchaseTicket eventId={eventId} />
           )}
-
-          {queuePosition.status === "waiting" && (
-            <span className="text-amber-700 font-medium">
-              {availability.purchasedCount >= availability.totalTickets
-                ? "Event sold out! :("
-                : `Queue position: #${queuePosition.position}`}
-            </span>
-          )}
-
+          {renderQueuePosition()}
           {queuePosition.status === "expired" && (
-            <span className="text-red-700 font-medium">
-              Queue position expired
-            </span>
-          )}
-
-          {queuePosition.status === "purchased" && (
-            <span className="text-green-700 font-medium">
-              Ticket purchased!
-            </span>
+            <div className="p-3 bg-red-50 rounded-lg border border-red-100">
+              <span className="text-red-700 font-medium flex items-center">
+                <XCircle className="w-5 h-5 mr-2" />
+                Offer expired
+              </span>
+            </div>
           )}
         </div>
       );
