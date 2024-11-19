@@ -15,9 +15,11 @@ import {
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import PurchaseTicket from "./PurchaseTicket";
+import { useRouter } from "next/navigation";
 
 export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
   const { user } = useUser();
+  const router = useRouter();
   const event = useQuery(api.events.getById, { eventId });
   const availability = useQuery(api.events.getEventAvailability, { eventId });
   const userTicket = useQuery(api.tickets.getUserTicketForEvent, {
@@ -89,12 +91,12 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
               You have a ticket!
             </span>
           </div>
-          <Link
-            href={`/tickets/${userTicket._id}`}
+          <button
+            onClick={() => router.push(`/tickets/${userTicket._id}`)}
             className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-full font-medium shadow-sm transition-colors duration-200 flex items-center gap-1"
           >
             View your ticket
-          </Link>
+          </button>
         </div>
       );
     }
@@ -122,9 +124,9 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
   };
 
   return (
-    <Link
-      href={`/event/${eventId}`}
-      className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100"
+    <div
+      onClick={() => router.push(`/event/${eventId}`)}
+      className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 cursor-pointer"
     >
       <div className="p-6">
         <div className="flex justify-between items-start">
@@ -172,8 +174,15 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
           {event.description}
         </p>
 
-        {renderTicketStatus()}
+        <div
+          onClick={(e) => {
+            // Prevent click event from bubbling up to the parent div
+            e.stopPropagation();
+          }}
+        >
+          {renderTicketStatus()}
+        </div>
       </div>
-    </Link>
+    </div>
   );
 }
