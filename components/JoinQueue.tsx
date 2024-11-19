@@ -18,8 +18,10 @@ export default function JoinQueue({
     eventId,
     userId,
   });
-
-  console.log("queuePosition >>>", queuePosition);
+  const userTicket = useQuery(api.tickets.getUserTicketForEvent, {
+    eventId,
+    userId,
+  });
 
   const handleJoinQueue = async () => {
     try {
@@ -34,6 +36,10 @@ export default function JoinQueue({
 
   if (queuePosition === undefined) {
     return <div>Loading...</div>;
+  }
+
+  if (userTicket) {
+    return null;
   }
 
   return (

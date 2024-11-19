@@ -3,35 +3,64 @@
 import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
 import { Id } from "@/convex/_generated/dataModel";
+import { CalendarDays, MapPin, Ticket, Check } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { CalendarDays, MapPin, Ticket } from "lucide-react";
 
 export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
-  const availability = useQuery(api.events.checkAvailability, {
-    eventId,
-  });
+  const { user } = useUser();
+  const availability = useQuery(api.events.checkAvailability, { eventId });
   const event = useQuery(api.events.getById, { eventId });
+  const userTicket = useQuery(api.tickets.getUserTicketForEvent, {
+    eventId,
+    userId: user?.id ?? "",
+  });
+  const queuePosition = useQuery(api.waitingList.getQueuePosition, {
+    eventId,
+    userId: user?.id ?? "",
+  });
 
-  if (!event) {
+  if (!event || !availability) {
     return null;
-  }
-
-  if (!availability) {
-    return null; // Skip rendering until we have availability data
   }
 
   const availableTickets = event.totalTickets - availability.purchasedCount;
 
+  const renderTicketStatus = () => {
+    if (!user) return null;
+
+    if (userTicket) {
+      return (
+        <div className="mt-4 flex items-center p-3 bg-green-50 rounded-lg border border-green-100">
+          <Check className="w-5 h-5 text-green-600 mr-2" />
+          <span className="text-green-700 font-medium">You have a ticket!</span>
+        </div>
+      );
+    }
+
+    if (queuePosition) {
+      return (
+        <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-100">
+          <span className="text-amber-700 font-medium">
+            {queuePosition.status === "offered"
+              ? "Ticket available - Purchase now!"
+              : `Queue position: #${queuePosition.position}`}
+          </span>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <Link
-      href={`/event/${event._id}`}
-      className="group relative overflow-hidden bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100"
+      href={`/event/${eventId}`}
+      className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100"
     >
       <div className="p-6">
         <div className="flex justify-between items-start">
-          <h2 className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-            {event.name}
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900">{event.name}</h2>
           <span className="px-4 py-1.5 bg-green-50 text-green-700 font-semibold rounded-full">
             ${event.price.toFixed(2)}
           </span>
@@ -64,9 +93,9 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
         <p className="mt-4 text-gray-600 line-clamp-2 text-sm">
           {event.description}
         </p>
-      </div>
 
-      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
+        {renderTicketStatus()}
+      </div>
     </Link>
   );
 }
