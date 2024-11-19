@@ -10,8 +10,8 @@ export async function createStripeConnectAccountLink(account: string) {
 
     const accountLink = await stripe.accountLinks.create({
       account,
-      refresh_url: `${origin}/refresh/${account}`,
-      return_url: `${origin}/return/${account}`,
+      refresh_url: `${origin}/connect/refresh/${account}`,
+      return_url: `${origin}/connect/return/${account}`,
       type: "account_onboarding",
     });
 

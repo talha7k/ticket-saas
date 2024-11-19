@@ -8,7 +8,6 @@ export async function createStripeConnectLoginLink(stripeAccountId: string) {
   }
 
   try {
-    console.log("DEBUG 1 >>>", stripeAccountId);
     const loginLink = await stripe.accounts.createLoginLink(stripeAccountId);
     return loginLink.url;
   } catch (error) {
