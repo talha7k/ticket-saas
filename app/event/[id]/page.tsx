@@ -1,3 +1,4 @@
+import EventCard from "@/components/EventCard";
 import JoinQueue from "@/components/JoinQueue";
 import { Id } from "@/convex/_generated/dataModel";
 import { auth } from "@clerk/nextjs/server";
@@ -14,6 +15,7 @@ async function TicketPage({ params }: { params: { id: string } }) {
   return (
     <div>
       TicketPage for {id}
+      <EventCard eventId={id as Id<"events">} />
       <JoinQueue eventId={id as Id<"events">} userId={userId} />
     </div>
   );

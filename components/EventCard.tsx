@@ -4,23 +4,17 @@ import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
 import { Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
+import { CalendarDays, MapPin, Ticket } from "lucide-react";
 
-type EventCardProps = {
-  event: {
-    _id: Id<"events">;
-    name: string;
-    description: string;
-    price: number;
-    location: string;
-    eventDate: number;
-    totalTickets: number;
-  };
-};
-
-export default function EventCard({ event }: EventCardProps) {
+export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
   const availability = useQuery(api.events.checkAvailability, {
-    eventId: event._id,
+    eventId,
   });
+  const event = useQuery(api.events.getById, { eventId });
+
+  if (!event) {
+    return null;
+  }
 
   if (!availability) {
     return null; // Skip rendering until we have availability data
@@ -31,30 +25,48 @@ export default function EventCard({ event }: EventCardProps) {
   return (
     <Link
       href={`/event/${event._id}`}
-      className="p-4 border rounded-lg hover:shadow-md transition-shadow"
+      className="group relative overflow-hidden bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100"
     >
-      <h2 className="text-xl font-bold">{event.name}</h2>
-      <div className="mt-2 space-y-2">
-        <p className="text-lg text-green-600 font-semibold">
-          ${event.price.toFixed(2)}
-        </p>
-        <p className="text-gray-600">Location: {event.location}</p>
-        <p className="text-gray-600">
-          Date: {new Date(event.eventDate).toLocaleDateString()}
-        </p>
-        <p className="text-gray-600">
-          Available Tickets:{" "}
-          <span className="font-medium">
-            {availableTickets} / {event.totalTickets}
+      <div className="p-6">
+        <div className="flex justify-between items-start">
+          <h2 className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+            {event.name}
+          </h2>
+          <span className="px-4 py-1.5 bg-green-50 text-green-700 font-semibold rounded-full">
+            ${event.price.toFixed(2)}
           </span>
-          {availability.activeOffers > 0 && (
-            <span className="text-yellow-600 ml-2">
-              ({availability.activeOffers} pending)
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <div className="flex items-center text-gray-600">
+            <MapPin className="w-4 h-4 mr-2" />
+            <span>{event.location}</span>
+          </div>
+
+          <div className="flex items-center text-gray-600">
+            <CalendarDays className="w-4 h-4 mr-2" />
+            <span>{new Date(event.eventDate).toLocaleDateString()}</span>
+          </div>
+
+          <div className="flex items-center text-gray-600">
+            <Ticket className="w-4 h-4 mr-2" />
+            <span>
+              {availableTickets} / {event.totalTickets} available
+              {availability.activeOffers > 0 && (
+                <span className="ml-2 text-amber-600 text-sm">
+                  ({availability.activeOffers} pending)
+                </span>
+              )}
             </span>
-          )}
+          </div>
+        </div>
+
+        <p className="mt-4 text-gray-600 line-clamp-2 text-sm">
+          {event.description}
         </p>
-        <p className="text-gray-700 mt-4 line-clamp-2">{event.description}</p>
       </div>
+
+      <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
     </Link>
   );
 }

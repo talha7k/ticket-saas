@@ -14,7 +14,7 @@ export default function EventList() {
   return (
     <main className="flex flex-col gap-4">
       {events.map((event) => (
-        <EventCard key={event._id} event={event} />
+        <EventCard key={event._id} eventId={event._id} />
       ))}
 
       {events.length === 0 && (
