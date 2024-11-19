@@ -6,6 +6,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { WAITING_LIST_STATUS } from "@/convex/constants";
 import Spinner from "./Spinner";
 import { Clock } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function JoinQueue({
   eventId,
@@ -14,6 +15,7 @@ export default function JoinQueue({
   eventId: Id<"events">;
   userId: string;
 }) {
+  const { toast } = useToast();
   const joinWaitingList = useMutation(api.events.joinWaitingList);
   const queuePosition = useQuery(api.waitingList.getQueuePosition, {
     eventId,
@@ -33,7 +35,23 @@ export default function JoinQueue({
         console.log("Successfully joined waiting list");
       }
     } catch (error) {
-      console.error("Error joining waiting list:", error);
+      if (
+        error instanceof Error &&
+        error.message.includes("Too many queue joins")
+      ) {
+        toast({
+          variant: "destructive",
+          title: "Uh oh! Something went wrong.",
+          description: error.message,
+        });
+      } else {
+        console.error("Error joining waiting list:", error);
+        toast({
+          variant: "destructive",
+          title: "Uh oh! Something went wrong.",
+          description: "Failed to join queue. Please try again later.",
+        });
+      }
     }
   };
 

@@ -124,7 +124,7 @@ export default function EventPage() {
           </div>
         )}
 
-        {availability.isSoldOut && (
+        {availability.purchasedCount >= availability.totalTickets && (
           <div className="bg-red-50 border border-red-100 rounded-lg p-4">
             <p className="text-red-700 font-medium">
               This event is currently sold out.

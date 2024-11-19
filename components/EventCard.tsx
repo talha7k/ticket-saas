@@ -52,7 +52,7 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
 
     if (queuePosition.position === 2) {
       return (
-        <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-100">
+        <div className="flex flex-col lg:flex-row items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-100">
           <div className="flex items-center">
             <CircleArrowRight className="w-5 h-5 text-amber-500 mr-2" />
             <span className="text-amber-700 font-medium">
