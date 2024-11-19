@@ -9,8 +9,8 @@ import Link from "next/link";
 
 export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
   const { user } = useUser();
-  const availability = useQuery(api.events.checkAvailability, { eventId });
   const event = useQuery(api.events.getById, { eventId });
+  const availability = useQuery(api.events.getEventAvailability, { eventId });
   const userTicket = useQuery(api.tickets.getUserTicketForEvent, {
     eventId,
     userId: user?.id ?? "",
@@ -23,8 +23,6 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
   if (!event || !availability) {
     return null;
   }
-
-  const availableTickets = event.totalTickets - availability.purchasedCount;
 
   const renderTicketStatus = () => {
     if (!user) return null;
@@ -61,9 +59,16 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
       <div className="p-6">
         <div className="flex justify-between items-start">
           <h2 className="text-2xl font-bold text-gray-900">{event.name}</h2>
-          <span className="px-4 py-1.5 bg-green-50 text-green-700 font-semibold rounded-full">
-            ${event.price.toFixed(2)}
-          </span>
+          <div className="flex flex-col items-end gap-2">
+            <span className="px-4 py-1.5 bg-green-50 text-green-700 font-semibold rounded-full">
+              ${event.price.toFixed(2)}
+            </span>
+            {availability.isSoldOut && (
+              <span className="px-4 py-1.5 bg-red-50 text-red-700 font-semibold rounded-full text-sm">
+                Sold Out
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="mt-4 space-y-3">
@@ -80,7 +85,8 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
           <div className="flex items-center text-gray-600">
             <Ticket className="w-4 h-4 mr-2" />
             <span>
-              {availableTickets} / {event.totalTickets} available
+              {availability.remainingTickets} / {availability.totalTickets}{" "}
+              available
               {availability.activeOffers > 0 && (
                 <span className="ml-2 text-amber-600 text-sm">
                   ({availability.activeOffers} pending)
