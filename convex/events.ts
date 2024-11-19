@@ -89,9 +89,11 @@ export const checkAvailability = query({
 
 // Join waiting list for an event
 export const joinWaitingList = mutation({
+  // Function takes an event ID and user ID as arguments
   args: { eventId: v.id("events"), userId: v.string() },
   handler: async (ctx, { eventId, userId }) => {
-    // Check if user is already in waiting list for this specific event
+    // First check if user already has an active entry in waiting list for this event
+    // Active means any status except EXPIRED
     const existingEntry = await ctx.db
       .query("waitingList")
       .withIndex("by_user_event", (q) =>
@@ -100,30 +102,31 @@ export const joinWaitingList = mutation({
       .filter((q) => q.neq(q.field("status"), WAITING_LIST_STATUS.EXPIRED))
       .first();
 
+    // Don't allow duplicate entries
     if (existingEntry) {
       throw new Error("Already in waiting list for this event");
     }
 
-    // Check event exists
+    // Verify the event exists
     const event = await ctx.db.get(eventId);
     if (!event) throw new Error("Event not found");
 
-    // Get current availability
+    // Check if there are any available tickets right now
     const { available } = await checkAvailability(ctx, { eventId });
 
     const now = Date.now();
 
-    // Always insert an entry, but with different status based on availability
     if (available) {
-      // Create the offer
+      // If tickets are available, create an offer entry
       const waitingListId = await ctx.db.insert("waitingList", {
         eventId,
         userId,
-        status: WAITING_LIST_STATUS.OFFERED,
-        offerExpiresAt: now + DURATIONS.TICKET_OFFER,
+        status: WAITING_LIST_STATUS.OFFERED, // Mark as offered
+        offerExpiresAt: now + DURATIONS.TICKET_OFFER, // Set expiration time
       });
 
-      // Schedule the expiration
+      // Schedule a job to expire this offer after the offer duration
+      console.log("DEBUG >>>> this ran");
       await ctx.scheduler.runAfter(
         DURATIONS.TICKET_OFFER,
         internal.waitingList.expireOffer,
@@ -133,19 +136,20 @@ export const joinWaitingList = mutation({
         }
       );
     } else {
-      // Add to waiting list without an offer
+      // If no tickets available, add to waiting list
       await ctx.db.insert("waitingList", {
         eventId,
         userId,
-        status: WAITING_LIST_STATUS.WAITING,
+        status: WAITING_LIST_STATUS.WAITING, // Mark as waiting
       });
     }
 
+    // Return appropriate status message
     return {
       success: true,
       status: available
-        ? WAITING_LIST_STATUS.OFFERED
-        : WAITING_LIST_STATUS.WAITING,
+        ? WAITING_LIST_STATUS.OFFERED // If available, status is offered
+        : WAITING_LIST_STATUS.WAITING, // If not available, status is waiting
       message: available
         ? "Ticket offered - you have 15 minutes to purchase"
         : "Added to waiting list - you'll be notified when a ticket becomes available",

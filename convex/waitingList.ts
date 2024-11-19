@@ -2,6 +2,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { DURATIONS, WAITING_LIST_STATUS, TICKET_STATUS } from "./constants";
+import { internal } from "./_generated/api";
 
 /**
  * Helper function to group waiting list entries by event ID.
@@ -79,7 +80,7 @@ export const processQueue = mutation({
     const event = await ctx.db.get(eventId);
     if (!event) throw new Error("Event not found");
 
-    // Calculate available spots by subtracting purchased tickets and active offers from total
+    // Calculate available spots
     const { availableSpots } = await ctx.db
       .query("events")
       .filter((q) => q.eq(q.field("_id"), eventId))
@@ -87,7 +88,6 @@ export const processQueue = mutation({
       .then(async (event) => {
         if (!event) throw new Error("Event not found");
 
-        // Count valid and used tickets
         const purchasedCount = await ctx.db
           .query("tickets")
           .withIndex("by_event", (q) => q.eq("eventId", eventId))
@@ -101,7 +101,6 @@ export const processQueue = mutation({
               ).length
           );
 
-        // Count offers that haven't expired yet
         const now = Date.now();
         const activeOffers = await ctx.db
           .query("waitingList")
@@ -121,7 +120,7 @@ export const processQueue = mutation({
 
     if (availableSpots <= 0) return;
 
-    // Get next users in line up to available spots count
+    // Get next users in line
     const waitingUsers = await ctx.db
       .query("waitingList")
       .withIndex("by_event_status", (q) =>
@@ -133,10 +132,21 @@ export const processQueue = mutation({
     // Create time-limited offers for selected users
     const now = Date.now();
     for (const user of waitingUsers) {
+      // Update the waiting list entry to OFFERED status
       await ctx.db.patch(user._id, {
         status: WAITING_LIST_STATUS.OFFERED,
         offerExpiresAt: now + DURATIONS.TICKET_OFFER,
       });
+
+      // Schedule expiration job for this offer
+      await ctx.scheduler.runAfter(
+        DURATIONS.TICKET_OFFER,
+        internal.waitingList.expireOffer,
+        {
+          waitingListId: user._id,
+          eventId,
+        }
+      );
     }
   },
 });

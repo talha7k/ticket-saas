@@ -6,6 +6,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { CalendarDays, MapPin, Ticket, Check } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
+import PurchaseTicket from "./PurchaseTicket";
 
 export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
   const { user } = useUser();
@@ -39,11 +40,34 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
     if (queuePosition) {
       return (
         <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-100">
-          <span className="text-amber-700 font-medium">
-            {queuePosition.status === "offered"
-              ? `Ticket Reserved - Purchase now!`
-              : `Queue position: #${queuePosition.position}`}
-          </span>
+          {queuePosition.status === "offered" && (
+            <PurchaseTicket
+              eventId={eventId}
+              userId={user?.id ?? ""}
+              waitingListId={queuePosition._id}
+              offerExpiresAt={queuePosition.offerExpiresAt ?? 0}
+            />
+          )}
+
+          {queuePosition.status === "waiting" && (
+            <span className="text-amber-700 font-medium">
+              {availability.purchasedCount >= availability.totalTickets
+                ? "Event sold out! :("
+                : `Queue position: #${queuePosition.position}`}
+            </span>
+          )}
+
+          {queuePosition.status === "expired" && (
+            <span className="text-red-700 font-medium">
+              Queue position expired
+            </span>
+          )}
+
+          {queuePosition.status === "purchased" && (
+            <span className="text-green-700 font-medium">
+              Ticket purchased!
+            </span>
+          )}
         </div>
       );
     }

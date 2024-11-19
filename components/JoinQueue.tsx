@@ -45,26 +45,16 @@ export default function JoinQueue({
 
   return (
     <div>
-      {queuePosition?.status === WAITING_LIST_STATUS.WAITING && (
-        <div className="text-center p-4">
-          <p className="text-lg font-semibold">
-            Your position in queue: {queuePosition.position}
-          </p>
-          <p className="text-gray-600">
-            Please wait while we process your request...
-          </p>
-        </div>
-      )}
-
-      {queuePosition?.status === WAITING_LIST_STATUS.OFFERED &&
-        queuePosition.offerExpiresAt &&
-        queuePosition.offerExpiresAt > Date.now() && (
-          <PurchaseTicket
-            eventId={eventId}
-            userId={userId}
-            waitingListId={queuePosition._id}
-            offerExpiresAt={queuePosition.offerExpiresAt}
-          />
+      {queuePosition?.status === WAITING_LIST_STATUS.WAITING &&
+        availability.purchasedCount < availability.totalTickets && (
+          <div className="text-center p-4">
+            <p className="text-lg font-semibold">
+              Your position in queue: {queuePosition.position}
+            </p>
+            <p className="text-gray-600">
+              Please wait while we process your request...
+            </p>
+          </div>
         )}
 
       {(!queuePosition ||
