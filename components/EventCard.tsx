@@ -63,7 +63,7 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
             <span className="px-4 py-1.5 bg-green-50 text-green-700 font-semibold rounded-full">
               ${event.price.toFixed(2)}
             </span>
-            {availability.isSoldOut && (
+            {availability.purchasedCount >= availability.totalTickets && (
               <span className="px-4 py-1.5 bg-red-50 text-red-700 font-semibold rounded-full text-sm">
                 Sold Out
               </span>
@@ -85,8 +85,8 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
           <div className="flex items-center text-gray-600">
             <Ticket className="w-4 h-4 mr-2" />
             <span>
-              {availability.remainingTickets} / {availability.totalTickets}{" "}
-              available
+              {availability.totalTickets - availability.purchasedCount} /{" "}
+              {availability.totalTickets} available
               {availability.activeOffers > 0 && (
                 <span className="ml-2 text-amber-600 text-sm">
                   ({availability.activeOffers} pending)

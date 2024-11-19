@@ -22,6 +22,7 @@ export default function JoinQueue({
     eventId,
     userId,
   });
+  const availability = useQuery(api.events.getEventAvailability, { eventId });
 
   const handleJoinQueue = async () => {
     try {
@@ -34,7 +35,7 @@ export default function JoinQueue({
     }
   };
 
-  if (queuePosition === undefined) {
+  if (queuePosition === undefined || availability === undefined) {
     return <div>Loading...</div>;
   }
 
@@ -56,7 +57,8 @@ export default function JoinQueue({
       )}
 
       {queuePosition?.status === WAITING_LIST_STATUS.OFFERED &&
-        queuePosition.offerExpiresAt && (
+        queuePosition.offerExpiresAt &&
+        queuePosition.offerExpiresAt > Date.now() && (
           <PurchaseTicket
             eventId={eventId}
             userId={userId}
@@ -66,13 +68,26 @@ export default function JoinQueue({
         )}
 
       {(!queuePosition ||
-        queuePosition.status === WAITING_LIST_STATUS.EXPIRED) && (
-        <button
-          onClick={handleJoinQueue}
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
-        >
-          Join Queue
-        </button>
+        queuePosition.status === WAITING_LIST_STATUS.EXPIRED ||
+        (queuePosition.status === WAITING_LIST_STATUS.OFFERED &&
+          queuePosition.offerExpiresAt &&
+          queuePosition.offerExpiresAt <= Date.now())) && (
+        <>
+          {availability.purchasedCount >= availability?.totalTickets ? (
+            <div className="text-center p-4">
+              <p className="text-lg font-semibold text-red-600">
+                Sorry, this event is sold out
+              </p>
+            </div>
+          ) : (
+            <button
+              onClick={handleJoinQueue}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+            >
+              Join Queue
+            </button>
+          )}
+        </>
       )}
     </div>
   );
