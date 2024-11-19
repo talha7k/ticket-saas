@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Id } from "@/convex/_generated/dataModel";
 import { WAITING_LIST_STATUS } from "@/convex/constants";
 import Spinner from "./Spinner";
+import { Clock } from "lucide-react";
 
 export default function JoinQueue({
   eventId,
@@ -23,6 +24,7 @@ export default function JoinQueue({
     userId,
   });
   const availability = useQuery(api.events.getEventAvailability, { eventId });
+  const event = useQuery(api.events.getById, { eventId });
 
   const handleJoinQueue = async () => {
     try {
@@ -35,13 +37,15 @@ export default function JoinQueue({
     }
   };
 
-  if (queuePosition === undefined || availability === undefined) {
+  if (queuePosition === undefined || availability === undefined || !event) {
     return <Spinner />;
   }
 
   if (userTicket) {
     return null;
   }
+
+  const isPastEvent = event.eventDate < Date.now();
 
   return (
     <div>
@@ -51,7 +55,12 @@ export default function JoinQueue({
           queuePosition.offerExpiresAt &&
           queuePosition.offerExpiresAt <= Date.now())) && (
         <>
-          {availability.purchasedCount >= availability?.totalTickets ? (
+          {isPastEvent ? (
+            <div className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-gray-100 text-gray-500 rounded-lg cursor-not-allowed">
+              <Clock className="w-5 h-5" />
+              <span>Event has ended</span>
+            </div>
+          ) : availability.purchasedCount >= availability?.totalTickets ? (
             <div className="text-center p-4">
               <p className="text-lg font-semibold text-red-600">
                 Sorry, this event is sold out
@@ -60,7 +69,8 @@ export default function JoinQueue({
           ) : (
             <button
               onClick={handleJoinQueue}
-              className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200 shadow-md flex items-center justify-center"
+              disabled={isPastEvent}
+              className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200 shadow-md flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               Buy Ticket
             </button>

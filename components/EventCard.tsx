@@ -13,7 +13,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import Link from "next/link";
 import PurchaseTicket from "./PurchaseTicket";
 import { useRouter } from "next/navigation";
 
@@ -34,6 +33,8 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
   if (!event || !availability) {
     return null;
   }
+
+  const isPastEvent = event.eventDate < Date.now();
 
   const renderQueuePosition = () => {
     if (!queuePosition || queuePosition.status !== "waiting") return null;
@@ -126,13 +127,28 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
   return (
     <div
       onClick={() => router.push(`/event/${eventId}`)}
-      className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 cursor-pointer"
+      className={`bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 cursor-pointer ${
+        isPastEvent ? "opacity-50 hover:opacity-100" : ""
+      }`}
     >
       <div className="p-6">
         <div className="flex justify-between items-start">
-          <h2 className="text-2xl font-bold text-gray-900">{event.name}</h2>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">{event.name}</h2>
+            {isPastEvent && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 mt-2">
+                Past Event
+              </span>
+            )}
+          </div>
           <div className="flex flex-col items-end gap-2">
-            <span className="px-4 py-1.5 bg-green-50 text-green-700 font-semibold rounded-full">
+            <span
+              className={`px-4 py-1.5 font-semibold rounded-full ${
+                isPastEvent
+                  ? "bg-gray-50 text-gray-500"
+                  : "bg-green-50 text-green-700"
+              }`}
+            >
               £{event.price.toFixed(2)}
             </span>
             {availability.purchasedCount >= availability.totalTickets && (
@@ -151,7 +167,10 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
 
           <div className="flex items-center text-gray-600">
             <CalendarDays className="w-4 h-4 mr-2" />
-            <span>{new Date(event.eventDate).toLocaleDateString()}</span>
+            <span>
+              {new Date(event.eventDate).toLocaleDateString()}{" "}
+              {isPastEvent && "(Ended)"}
+            </span>
           </div>
 
           <div className="flex items-center text-gray-600">
@@ -159,7 +178,7 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
             <span>
               {availability.totalTickets - availability.purchasedCount} /{" "}
               {availability.totalTickets} available
-              {availability.activeOffers > 0 && (
+              {!isPastEvent && availability.activeOffers > 0 && (
                 <span className="ml-2 text-amber-600 text-sm">
                   ({availability.activeOffers}{" "}
                   {availability.activeOffers === 1 ? "person" : "people"} trying
@@ -176,11 +195,10 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
 
         <div
           onClick={(e) => {
-            // Prevent click event from bubbling up to the parent div
             e.stopPropagation();
           }}
         >
-          {renderTicketStatus()}
+          {!isPastEvent && renderTicketStatus()}
         </div>
       </div>
     </div>

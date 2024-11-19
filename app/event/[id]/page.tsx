@@ -97,7 +97,7 @@ export default function EventPage() {
 
             {/* Right Column - Ticket Purchase Card */}
             <div className="lg:pl-8">
-              <div className="sticky top-8">
+              <div className="sticky top-8 flex flex-col gap-4">
                 <EventCard eventId={params.id as Id<"events">} />
 
                 {user && (

@@ -17,6 +17,13 @@ export default function MyTicketsPage() {
   const validTickets = tickets.filter((t) => t.status === "valid");
   const otherTickets = tickets.filter((t) => t.status !== "valid");
 
+  const upcomingTickets = validTickets.filter(
+    (t) => t.event && t.event.eventDate > Date.now()
+  );
+  const pastTickets = validTickets.filter(
+    (t) => t.event && t.event.eventDate <= Date.now()
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
@@ -37,13 +44,26 @@ export default function MyTicketsPage() {
           </div>
         </div>
 
-        {validTickets.length > 0 && (
+        {upcomingTickets.length > 0 && (
           <div className="mb-12">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
               Upcoming Events
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {validTickets.map((ticket) => (
+              {upcomingTickets.map((ticket) => (
+                <TicketCard key={ticket._id} ticketId={ticket._id} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {pastTickets.length > 0 && (
+          <div className="mb-12">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Past Events
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {pastTickets.map((ticket) => (
                 <TicketCard key={ticket._id} ticketId={ticket._id} />
               ))}
             </div>
@@ -53,7 +73,7 @@ export default function MyTicketsPage() {
         {otherTickets.length > 0 && (
           <div>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Past Events & Other Tickets
+              Other Tickets
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {otherTickets.map((ticket) => (
