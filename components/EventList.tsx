@@ -3,12 +3,13 @@
 import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
 import EventCard from "./EventCard";
+import Spinner from "./Spinner";
 
 export default function EventList() {
   const events = useQuery(api.events.get);
 
   if (!events) {
-    return <div>Loading...</div>;
+    return <Spinner />;
   }
 
   return (

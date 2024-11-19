@@ -12,6 +12,7 @@ import { getStripeConnectAccountStatus } from "@/app/actions/getStripeConnectAcc
 import type { AccountStatus } from "@/app/actions/getStripeConnectAccountStatus";
 import { Cog, StarIcon, Ticket } from "lucide-react";
 import Link from "next/link";
+import Spinner from "./Spinner";
 
 export default function SellerDashboard() {
   const [accountCreatePending, setAccountCreatePending] = useState(false);
@@ -37,7 +38,7 @@ export default function SellerDashboard() {
   }, [stripeConnectId]);
 
   if (stripeConnectId === undefined) {
-    return <div>Loading...</div>;
+    return <Spinner />;
   }
 
   const handleManageAccount = async () => {

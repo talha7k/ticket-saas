@@ -89,9 +89,12 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
               You have a ticket!
             </span>
           </div>
-          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-            Confirmed
-          </span>
+          <Link
+            href={`/tickets/${userTicket._id}`}
+            className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-full font-medium shadow-sm transition-colors duration-200 flex items-center gap-1"
+          >
+            View your ticket
+          </Link>
         </div>
       );
     }

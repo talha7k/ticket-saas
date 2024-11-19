@@ -3,8 +3,8 @@
 import { api } from "@/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { Id } from "@/convex/_generated/dataModel";
-import PurchaseTicket from "./PurchaseTicket";
 import { WAITING_LIST_STATUS } from "@/convex/constants";
+import Spinner from "./Spinner";
 
 export default function JoinQueue({
   eventId,
@@ -36,7 +36,7 @@ export default function JoinQueue({
   };
 
   if (queuePosition === undefined || availability === undefined) {
-    return <div>Loading...</div>;
+    return <Spinner />;
   }
 
   if (userTicket) {
@@ -60,9 +60,9 @@ export default function JoinQueue({
           ) : (
             <button
               onClick={handleJoinQueue}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+              className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200 shadow-md flex items-center justify-center"
             >
-              Join Queue
+              Buy Ticket
             </button>
           )}
         </>
