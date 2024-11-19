@@ -41,7 +41,7 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
         <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-100">
           <span className="text-amber-700 font-medium">
             {queuePosition.status === "offered"
-              ? "Ticket available - Purchase now!"
+              ? `Ticket Reserved - Purchase now!`
               : `Queue position: #${queuePosition.position}`}
           </span>
         </div>
