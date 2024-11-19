@@ -10,8 +10,10 @@ import React, { useState, useEffect } from "react";
 import { createStripeConnectLoginLink } from "@/app/actions/createStripeConnectLoginLink";
 import { getStripeConnectAccountStatus } from "@/app/actions/getStripeConnectAccountStatus";
 import type { AccountStatus } from "@/app/actions/getStripeConnectAccountStatus";
+import { Ticket } from "lucide-react";
+import Link from "next/link";
 
-export default function SellerOnboarding() {
+export default function SellerDashboard() {
   const [accountCreatePending, setAccountCreatePending] = useState(false);
   const [accountLinkCreatePending, setAccountLinkCreatePending] =
     useState(false);
@@ -24,6 +26,9 @@ export default function SellerOnboarding() {
   const stripeConnectId = useQuery(api.users.getUsersStripeConnectId, {
     userId: user?.id || "",
   });
+
+  const isReadyToAcceptPayments =
+    accountStatus?.isActive && accountStatus?.payoutsEnabled;
 
   useEffect(() => {
     if (stripeConnectId) {
@@ -70,6 +75,28 @@ export default function SellerOnboarding() {
         </div>
 
         {/* Main Content */}
+        {isReadyToAcceptPayments && (
+          <>
+            <div className="bg-white p-8 rounded-lg">
+              <h2 className="text-2xl font-semibold text-gray-900 mb-6">
+                Sell tickets for your events
+              </h2>
+              <p className="text-gray-600 mb-8">
+                List your tickets for sale and manage your listings
+              </p>
+              <Link
+                href="/seller/new-event"
+                className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200 shadow-md flex items-center justify-center"
+              >
+                <Ticket className="w-5 h-5 mr-2" />
+                Create a new Event Listing
+              </Link>
+            </div>
+
+            <hr className="my-8" />
+          </>
+        )}
+
         <div className="p-6">
           {/* Account Creation Section */}
           {!stripeConnectId && !accountCreatePending && (

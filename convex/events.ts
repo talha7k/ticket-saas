@@ -18,6 +18,30 @@ export const getById = query({
   },
 });
 
+export const create = mutation({
+  args: {
+    name: v.string(),
+    description: v.string(),
+    location: v.string(),
+    eventDate: v.number(), // Store as timestamp
+    price: v.number(),
+    totalTickets: v.number(),
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const eventId = await ctx.db.insert("events", {
+      name: args.name,
+      description: args.description,
+      location: args.location,
+      eventDate: args.eventDate,
+      price: args.price,
+      totalTickets: args.totalTickets,
+      userId: args.userId,
+    });
+    return eventId;
+  },
+});
+
 // Helper function to check ticket availability for an event
 export const checkAvailability = query({
   args: { eventId: v.id("events") },

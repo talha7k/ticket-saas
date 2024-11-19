@@ -61,7 +61,7 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
           <h2 className="text-2xl font-bold text-gray-900">{event.name}</h2>
           <div className="flex flex-col items-end gap-2">
             <span className="px-4 py-1.5 bg-green-50 text-green-700 font-semibold rounded-full">
-              ${event.price.toFixed(2)}
+              £{event.price.toFixed(2)}
             </span>
             {availability.purchasedCount >= availability.totalTickets && (
               <span className="px-4 py-1.5 bg-red-50 text-red-700 font-semibold rounded-full text-sm">
