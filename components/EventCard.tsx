@@ -113,7 +113,9 @@ export default function EventCard({ eventId }: { eventId: Id<"events"> }) {
               {availability.totalTickets} available
               {availability.activeOffers > 0 && (
                 <span className="ml-2 text-amber-600 text-sm">
-                  ({availability.activeOffers} pending)
+                  ({availability.activeOffers}{" "}
+                  {availability.activeOffers === 1 ? "person" : "people"} trying
+                  to buy)
                 </span>
               )}
             </span>
