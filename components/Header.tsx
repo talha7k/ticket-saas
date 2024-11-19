@@ -19,7 +19,7 @@ function Header() {
               </button>
             </Link>
 
-            <Link href="/my-tickets">
+            <Link href="/tickets">
               <button className="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-200 transition mr-4 border border-gray-300">
                 My Tickets
               </button>

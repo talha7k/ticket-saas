@@ -42,8 +42,11 @@ export default defineSchema({
     .index("by_user", ["userId"]),
 
   users: defineTable({
+    name: v.string(),
+    email: v.string(),
     userId: v.string(),
     stripeConnectId: v.optional(v.string()),
-    stripeCustomerId: v.optional(v.string()),
-  }).index("by_userId", ["userId"]),
+  })
+    .index("by_user_id", ["userId"])
+    .index("by_email", ["email"]),
 });

@@ -10,7 +10,7 @@ import React, { useState, useEffect } from "react";
 import { createStripeConnectLoginLink } from "@/app/actions/createStripeConnectLoginLink";
 import { getStripeConnectAccountStatus } from "@/app/actions/getStripeConnectAccountStatus";
 import type { AccountStatus } from "@/app/actions/getStripeConnectAccountStatus";
-import { Ticket } from "lucide-react";
+import { Cog, StarIcon, Ticket } from "lucide-react";
 import Link from "next/link";
 
 export default function SellerDashboard() {
@@ -267,9 +267,10 @@ export default function SellerDashboard() {
                 {accountStatus.isActive && (
                   <button
                     onClick={handleManageAccount}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
                   >
-                    Manage Seller Account
+                    <Cog className="w-4 h-4 mr-2" />
+                    Seller Dashboard
                   </button>
                 )}
                 <button
