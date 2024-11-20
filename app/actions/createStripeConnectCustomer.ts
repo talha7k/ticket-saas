@@ -3,8 +3,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { api } from "@/convex/_generated/api";
 import { ConvexHttpClient } from "convex/browser";
-
-import Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 
 if (!process.env.STRIPE_SECRET_KEY) {
