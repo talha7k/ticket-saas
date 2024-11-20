@@ -61,6 +61,9 @@ export default function EventForm({ mode, initialData }: EventFormProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const generateUploadUrl = useMutation(api.storage.generateUploadUrl);
   const updateEventImage = useMutation(api.storage.updateEventImage);
+  const deleteImage = useMutation(api.storage.deleteImage);
+
+  const [removedCurrentImage, setRemovedCurrentImage] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -80,8 +83,21 @@ export default function EventForm({ mode, initialData }: EventFormProps) {
     startTransition(async () => {
       try {
         let imageStorageId = null;
+
+        // Handle image changes
         if (selectedImage) {
+          // Upload new image
           imageStorageId = await handleImageUpload(selectedImage);
+        }
+
+        // Handle image deletion/update in edit mode
+        if (mode === "edit" && initialData?.imageStorageId) {
+          if (removedCurrentImage || selectedImage) {
+            // Delete old image from storage
+            await deleteImage({
+              storageId: initialData.imageStorageId,
+            });
+          }
         }
 
         if (mode === "create") {
@@ -100,16 +116,21 @@ export default function EventForm({ mode, initialData }: EventFormProps) {
 
           router.push(`/event/${eventId}`);
         } else {
+          // Update event details
           await updateEvent({
             eventId: initialData._id,
             ...values,
             eventDate: values.eventDate.getTime(),
           });
 
-          if (imageStorageId) {
+          // Update image - this will now handle both adding new image and removing existing image
+          if (imageStorageId || removedCurrentImage) {
             await updateEventImage({
               eventId: initialData._id,
-              storageId: imageStorageId as Id<"_storage">,
+              // If we have a new image, use its ID, otherwise if we're removing the image, pass null
+              storageId: imageStorageId
+                ? (imageStorageId as Id<"_storage">)
+                : null,
             });
           }
 
@@ -281,10 +302,10 @@ export default function EventForm({ mode, initialData }: EventFormProps) {
               Event Image
             </label>
             <div className="mt-1 flex items-center gap-4">
-              {imagePreview || currentImageUrl ? (
+              {imagePreview || (!removedCurrentImage && currentImageUrl) ? (
                 <div className="relative w-32 aspect-square bg-gray-100 rounded-lg">
                   <Image
-                    src={imagePreview ?? currentImageUrl}
+                    src={imagePreview || currentImageUrl!}
                     alt="Preview"
                     fill
                     className="object-contain rounded-lg"
@@ -294,11 +315,12 @@ export default function EventForm({ mode, initialData }: EventFormProps) {
                     onClick={() => {
                       setSelectedImage(null);
                       setImagePreview(null);
+                      setRemovedCurrentImage(true);
                       if (imageInput.current) {
                         imageInput.current.value = "";
                       }
                     }}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
                   >
                     ×
                   </button>
