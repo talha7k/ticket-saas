@@ -139,7 +139,7 @@ export default function EventForm({ mode, initialData }: EventFormProps) {
             description: "Your event has been successfully updated.",
           });
 
-          router.push("/seller");
+          router.push(`/event/${initialData._id}`);
         }
       } catch (error) {
         console.error("Failed to handle event:", error);

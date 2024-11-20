@@ -32,7 +32,7 @@ export default function EventList() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Upcoming Events</h1>
           <p className="mt-2 text-gray-600">
-            Discover and book tickets for amazing events
+            Discover & book tickets for amazing events
           </p>
         </div>
         <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100">

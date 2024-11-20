@@ -5,7 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Id } from "@/convex/_generated/dataModel";
 import { WAITING_LIST_STATUS } from "@/convex/constants";
 import Spinner from "./Spinner";
-import { Clock } from "lucide-react";
+import { Clock, OctagonXIcon, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ConvexError } from "convex/values";
 
@@ -28,6 +28,8 @@ export default function JoinQueue({
   });
   const availability = useQuery(api.events.getEventAvailability, { eventId });
   const event = useQuery(api.events.getById, { eventId });
+
+  const isEventOwner = userId === event?.userId;
 
   const handleJoinQueue = async () => {
     try {
@@ -75,7 +77,12 @@ export default function JoinQueue({
           queuePosition.offerExpiresAt &&
           queuePosition.offerExpiresAt <= Date.now())) && (
         <>
-          {isPastEvent ? (
+          {isEventOwner ? (
+            <div className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-gray-100 text-gray-700 rounded-lg">
+              <OctagonXIcon className="w-5 h-5" />
+              <span>You cannot buy a ticket for your own event</span>
+            </div>
+          ) : isPastEvent ? (
             <div className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-gray-100 text-gray-500 rounded-lg cursor-not-allowed">
               <Clock className="w-5 h-5" />
               <span>Event has ended</span>
@@ -89,7 +96,7 @@ export default function JoinQueue({
           ) : (
             <button
               onClick={handleJoinQueue}
-              disabled={isPastEvent}
+              disabled={isPastEvent || isEventOwner}
               className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200 shadow-md flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               Buy Ticket
