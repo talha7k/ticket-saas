@@ -146,7 +146,6 @@ export const joinWaitingList = mutation({
       });
 
       // Schedule a job to expire this offer after the offer duration
-      console.log("DEBUG >>>> this ran");
       await ctx.scheduler.runAfter(
         DURATIONS.TICKET_OFFER,
         internal.waitingList.expireOffer,

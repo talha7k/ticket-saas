@@ -18,6 +18,10 @@ import { useUser } from "@clerk/nextjs";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
+import { useRef, useState, useTransition } from "react";
+import Image from "next/image";
+import { Id } from "@/convex/_generated/dataModel";
+import { Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   name: z.string().min(1),
@@ -32,6 +36,14 @@ function NewEventPage() {
   const { user } = useUser();
   const createEvent = useMutation(api.events.create);
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  // Image upload
+  const imageInput = useRef<HTMLInputElement>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const generateUploadUrl = useMutation(api.storage.generateUploadUrl);
+  const updateEventImage = useMutation(api.storage.updateEventImage);
 
   // 1. Define your form.
   const form = useForm<z.infer<typeof formSchema>>({
@@ -48,27 +60,65 @@ function NewEventPage() {
 
   // 2. Define a submit handler.
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    // Do something with the form values.
-    // ✅ This will be type-safe and validated.
-    console.log(values);
-
     if (!user?.id) {
       return;
     }
 
-    try {
-      const eventId = await createEvent({
-        ...values,
-        userId: user?.id,
-        eventDate: values.eventDate.getTime(),
-      });
+    startTransition(async () => {
+      try {
+        let imageStorageId = null;
+        if (selectedImage) {
+          imageStorageId = await handleImageUpload(selectedImage);
+        }
 
-      router.push(`/event/${eventId}`);
+        const eventId = await createEvent({
+          ...values,
+          userId: user?.id,
+          eventDate: values.eventDate.getTime(),
+        });
+
+        if (imageStorageId) {
+          await updateEventImage({
+            eventId,
+            storageId: imageStorageId as Id<"_storage">,
+          });
+        }
+
+        router.push(`/event/${eventId}`);
+      } catch (error) {
+        console.error("Failed to create event:", error);
+        // TODO: Show error message to user
+      }
+    });
+  }
+
+  async function handleImageUpload(file: File): Promise<string | null> {
+    try {
+      const postUrl = await generateUploadUrl();
+      const result = await fetch(postUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      const { storageId } = await result.json();
+      return storageId;
     } catch (error) {
-      console.error("Failed to create event:", error);
-      // TODO: Show error message to user
+      console.error("Failed to upload image:", error);
+      return null;
     }
   }
+
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   return (
     <div className="max-w-3xl mx-auto p-6">
@@ -200,9 +250,66 @@ function NewEventPage() {
                     </FormItem>
                   )}
                 />
+
+                <div className="space-y-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Event Image
+                  </label>
+                  <div className="mt-1 flex items-center gap-4">
+                    {imagePreview ? (
+                      <div className="relative w-32 aspect-square bg-gray-100 rounded-lg">
+                        <Image
+                          src={imagePreview}
+                          alt="Preview"
+                          fill
+                          className="object-contain rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedImage(null);
+                            setImagePreview(null);
+                            if (imageInput.current) {
+                              imageInput.current.value = "";
+                            }
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        ref={imageInput}
+                        className="block w-full text-sm text-gray-500
+                          file:mr-4 file:py-2 file:px-4
+                          file:rounded-full file:border-0
+                          file:text-sm file:font-semibold
+                          file:bg-blue-50 file:text-blue-700
+                          hover:file:bg-blue-100"
+                      />
+                    )}
+                  </div>
+                </div>
               </div>
 
-              <Button type="submit">Create Event</Button>
+              <Button
+                type="submit"
+                disabled={isPending}
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Creating Event...
+                  </>
+                ) : (
+                  "Create Event"
+                )}
+              </Button>
             </form>
           </Form>
         </div>

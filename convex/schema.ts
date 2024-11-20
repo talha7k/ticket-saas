@@ -10,6 +10,7 @@ export default defineSchema({
     price: v.number(),
     totalTickets: v.number(),
     userId: v.string(),
+    imageStorageId: v.optional(v.id("_storage")),
   }),
   tickets: defineTable({
     eventId: v.id("events"),

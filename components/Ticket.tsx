@@ -12,23 +12,43 @@ import {
 } from "lucide-react";
 import QRCode from "react-qr-code";
 import Spinner from "./Spinner";
+import { useStorageUrl } from "@/lib/utils";
+import Image from "next/image";
 
 export default function Ticket({ ticketId }: { ticketId: Id<"tickets"> }) {
   const ticket = useQuery(api.tickets.getTicketWithDetails, { ticketId });
   const user = useQuery(api.users.getUserById, {
     userId: ticket?.userId ?? "",
   });
+  const imageUrl = useStorageUrl(ticket?.event?.imageStorageId);
 
   if (!ticket || !ticket.event || !user) {
-    // Loading spinner
     return <Spinner />;
   }
 
   return (
     <div className="bg-white rounded-xl overflow-hidden shadow-xl border border-gray-100">
-      {/* Event Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
-        <h2 className="text-2xl font-bold text-white">{ticket.event.name}</h2>
+      {/* Event Header with Image */}
+      <div className="relative">
+        {imageUrl ? (
+          <div className="relative w-full aspect-[21/9] ">
+            <Image
+              src={imageUrl}
+              alt={ticket.event.name}
+              fill
+              className="object-cover object-center"
+              priority
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-black/90" />
+          </div>
+        ) : (
+          <div className="bg-gradient-to-r from-blue-600 to-blue-700" />
+        )}
+        <div
+          className={`px-6 py-4 ${imageUrl ? "absolute bottom-0 left-0 right-0" : ""}`}
+        >
+          <h2 className="text-2xl font-bold text-white">{ticket.event.name}</h2>
+        </div>
       </div>
 
       {/* Ticket Content */}
@@ -63,7 +83,7 @@ export default function Ticket({ ticketId }: { ticketId: Id<"tickets"> }) {
               </div>
             </div>
 
-            <div className="flex items-center text-gray-600">
+            <div className="flex items-center text-gray-600 break-all">
               <IdCard className="w-5 h-5 mr-3 text-blue-600" />
               <div>
                 <p className="text-sm text-gray-500">Ticket Holder ID</p>
@@ -85,7 +105,7 @@ export default function Ticket({ ticketId }: { ticketId: Id<"tickets"> }) {
             <div className="bg-gray-100 p-4 rounded-lg">
               <QRCode value={ticket._id} className="w-32 h-32" />
             </div>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-gray-500 break-all text-center max-w-[200px] md:max-w-full">
               Ticket ID: {ticket._id}
             </p>
           </div>
