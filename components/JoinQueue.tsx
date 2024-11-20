@@ -5,7 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Id } from "@/convex/_generated/dataModel";
 import { WAITING_LIST_STATUS } from "@/convex/constants";
 import Spinner from "./Spinner";
-import { Clock, OctagonXIcon, ShieldAlert } from "lucide-react";
+import { Clock, OctagonXIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ConvexError } from "convex/values";
 

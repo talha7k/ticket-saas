@@ -4,11 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Ticket from "@/components/Ticket";
 
-async function TicketSuccess({
-  searchParams: { session_id },
-}: {
-  searchParams: { session_id: string };
-}) {
+async function TicketSuccess() {
   const { userId } = await auth();
   if (!userId) redirect("/");
 

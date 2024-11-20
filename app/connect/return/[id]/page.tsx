@@ -1,12 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { CheckCircle2, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 export default function Return() {
-  const router = useRouter();
-
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">

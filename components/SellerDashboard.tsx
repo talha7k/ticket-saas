@@ -10,7 +10,7 @@ import React, { useState, useEffect } from "react";
 import { createStripeConnectLoginLink } from "@/app/actions/createStripeConnectLoginLink";
 import { getStripeConnectAccountStatus } from "@/app/actions/getStripeConnectAccountStatus";
 import type { AccountStatus } from "@/app/actions/getStripeConnectAccountStatus";
-import { CalendarDays, Cog, Plus, StarIcon, Ticket } from "lucide-react";
+import { CalendarDays, Cog, Plus } from "lucide-react";
 import Link from "next/link";
 import Spinner from "./Spinner";
 
@@ -128,6 +128,10 @@ export default function SellerDashboard() {
                     await createStripeConnectCustomer();
                     setAccountCreatePending(false);
                   } catch (error) {
+                    console.error(
+                      "Error creating Stripe Connect customer:",
+                      error
+                    );
                     setError(true);
                     setAccountCreatePending(false);
                   }
@@ -262,6 +266,10 @@ export default function SellerDashboard() {
                             );
                           router.push(url);
                         } catch (error) {
+                          console.error(
+                            "Error creating Stripe Connect account link:",
+                            error
+                          );
                           setError(true);
                         }
                         setAccountLinkCreatePending(false);

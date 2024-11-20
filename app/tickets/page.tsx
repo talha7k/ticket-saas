@@ -90,7 +90,7 @@ export default function MyTicketsPage() {
               No tickets yet
             </h3>
             <p className="text-gray-600 mt-1">
-              When you purchase tickets, they'll appear here
+              When you purchase tickets, they&apos;ll appear here
             </p>
           </div>
         )}

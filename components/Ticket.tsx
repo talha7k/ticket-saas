@@ -138,7 +138,7 @@ export default function Ticket({ ticketId }: { ticketId: Id<"tickets"> }) {
           {ticket.event.is_cancelled ? (
             <p className="text-sm text-red-600">
               This event has been cancelled. A refund will be processed if it
-              hasn't been already.
+              hasn&apos;t been already.
             </p>
           ) : (
             <ul className="text-sm text-gray-600 space-y-1">

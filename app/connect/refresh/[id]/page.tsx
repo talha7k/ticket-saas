@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { createStripeConnectAccountLink } from "@/app/actions/createStripeConnectAccountLink";
 import { Loader2, AlertCircle } from "lucide-react";
 
 export default function Refresh() {
   const params = useParams();
-  const router = useRouter();
   const connectedAccountId = params.id as string;
   const [accountLinkCreatePending, setAccountLinkCreatePending] =
     useState(false);
@@ -23,6 +22,7 @@ export default function Refresh() {
             await createStripeConnectAccountLink(connectedAccountId);
           window.location.href = url;
         } catch (error) {
+          console.error("Error creating account link:", error);
           setError(true);
         }
         setAccountLinkCreatePending(false);
@@ -54,8 +54,8 @@ export default function Refresh() {
                     Something went wrong
                   </h3>
                   <p className="text-sm text-red-700">
-                    We couldn't refresh your account link. Please try again or
-                    contact support if the problem persists.
+                    We couldn&apos;t refresh your account link. Please try again
+                    or contact support if the problem persists.
                   </p>
                 </div>
               </div>

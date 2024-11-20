@@ -41,9 +41,20 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+interface InitialEventData {
+  _id: Id<"events">;
+  name: string;
+  description: string;
+  location: string;
+  eventDate: number;
+  price: number;
+  totalTickets: number;
+  imageStorageId?: Id<"_storage">;
+}
+
 interface EventFormProps {
   mode: "create" | "edit";
-  initialData?: any;
+  initialData?: InitialEventData;
 }
 
 export default function EventForm({ mode, initialData }: EventFormProps) {
@@ -116,6 +127,11 @@ export default function EventForm({ mode, initialData }: EventFormProps) {
 
           router.push(`/event/${eventId}`);
         } else {
+          // Ensure initialData exists before proceeding with update
+          if (!initialData) {
+            throw new Error("Initial event data is required for updates");
+          }
+
           // Update event details
           await updateEvent({
             eventId: initialData._id,
