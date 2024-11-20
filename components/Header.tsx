@@ -1,12 +1,14 @@
 import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import Image from "next/image";
 import Link from "next/link";
+import logo from "@/images/logo.png";
 
 function Header() {
   return (
     <header className="flex items-center justify-between p-4 border-b">
       <div>
         <Link href="/" className="font-bold">
-          Ticketing App
+          <Image src={logo} alt="logo" width={140} height={140} />
         </Link>
       </div>
 
