@@ -76,7 +76,7 @@ export default function EventPage() {
                     <span className="text-sm font-medium">Availability</span>
                   </div>
                   <p className="text-gray-900">
-                    {availability.remainingTickets} /{" "}
+                    {availability.totalTickets - availability.purchasedCount} /{" "}
                     {availability.totalTickets} left
                   </p>
                 </div>
