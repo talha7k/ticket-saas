@@ -5,6 +5,13 @@ import { components, internal } from "./_generated/api";
 import { processQueue } from "./waitingList";
 import { MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
 
+export type Metrics = {
+  soldTickets: number;
+  refundedTickets: number;
+  cancelledTickets: number;
+  revenue: number;
+};
+
 // Initialize rate limiter
 const rateLimiter = new RateLimiter(components.rateLimiter, {
   queueJoin: {
@@ -17,7 +24,10 @@ const rateLimiter = new RateLimiter(components.rateLimiter, {
 export const get = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db.query("events").collect();
+    return await ctx.db
+      .query("events")
+      .filter((q) => q.eq(q.field("is_cancelled"), undefined))
+      .collect();
   },
 });
 
@@ -182,23 +192,29 @@ export const purchaseTicket = mutation({
     eventId: v.id("events"),
     userId: v.string(),
     waitingListId: v.id("waitingList"),
+    paymentInfo: v.object({
+      paymentIntentId: v.string(),
+      amount: v.number(),
+    }),
   },
-  handler: async (ctx, { eventId, userId, waitingListId }) => {
+  handler: async (ctx, { eventId, userId, waitingListId, paymentInfo }) => {
     const waitingListEntry = await ctx.db.get(waitingListId);
 
-    // If purchase successful, immediately process queue for next person
+    // Create ticket with payment info
     await ctx.db.insert("tickets", {
       eventId,
       userId,
       purchasedAt: Date.now(),
-      status: TICKET_STATUS.VALID,
+      status: "valid",
+      paymentIntentId: paymentInfo.paymentIntentId,
+      amount: paymentInfo.amount,
     });
 
     await ctx.db.patch(waitingListId, {
-      status: WAITING_LIST_STATUS.PURCHASED,
+      status: "purchased",
     });
 
-    // Immediately process queue for next person
+    // Process queue for next person
     await processQueue(ctx, { eventId });
   },
 });
@@ -296,9 +312,11 @@ export const getEventAvailability = query({
 export const search = query({
   args: { searchTerm: v.string() },
   handler: async (ctx, { searchTerm }) => {
-    const events = await ctx.db.query("events").collect();
+    const events = await ctx.db
+      .query("events")
+      .filter((q) => q.eq(q.field("is_cancelled"), undefined))
+      .collect();
 
-    // Simple search implementation
     return events.filter((event) => {
       const searchTermLower = searchTerm.toLowerCase();
       return (
@@ -334,14 +352,16 @@ export const getSellerEvents = query({
           (t) => t.status === "cancelled"
         );
 
+        const metrics: Metrics = {
+          soldTickets: validTickets.length,
+          refundedTickets: refundedTickets.length,
+          cancelledTickets: cancelledTickets.length,
+          revenue: validTickets.length * event.price,
+        };
+
         return {
           ...event,
-          metrics: {
-            soldTickets: validTickets.length,
-            refundedTickets: refundedTickets.length,
-            cancelledTickets: cancelledTickets.length,
-            revenue: validTickets.length * event.price,
-          },
+          metrics,
         };
       })
     );
@@ -384,5 +404,45 @@ export const updateEvent = mutation({
 
     await ctx.db.patch(eventId, updates);
     return eventId;
+  },
+});
+
+export const cancelEvent = mutation({
+  args: { eventId: v.id("events") },
+  handler: async (ctx, { eventId }) => {
+    const event = await ctx.db.get(eventId);
+    if (!event) throw new Error("Event not found");
+
+    // Get all valid tickets for this event
+    const tickets = await ctx.db
+      .query("tickets")
+      .withIndex("by_event", (q) => q.eq("eventId", eventId))
+      .filter((q) =>
+        q.or(q.eq(q.field("status"), "valid"), q.eq(q.field("status"), "used"))
+      )
+      .collect();
+
+    if (tickets.length > 0) {
+      throw new Error(
+        "Cannot cancel event with active tickets. Please refund all tickets first."
+      );
+    }
+
+    // Mark event as cancelled
+    await ctx.db.patch(eventId, {
+      is_cancelled: true,
+    });
+
+    // Delete any waiting list entries
+    const waitingListEntries = await ctx.db
+      .query("waitingList")
+      .withIndex("by_event_status", (q) => q.eq("eventId", eventId))
+      .collect();
+
+    for (const entry of waitingListEntries) {
+      await ctx.db.delete(entry._id);
+    }
+
+    return { success: true };
   },
 });

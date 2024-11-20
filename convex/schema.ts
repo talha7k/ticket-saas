@@ -11,6 +11,7 @@ export default defineSchema({
     totalTickets: v.number(),
     userId: v.string(),
     imageStorageId: v.optional(v.id("_storage")),
+    is_cancelled: v.optional(v.boolean()),
   }),
   tickets: defineTable({
     eventId: v.id("events"),
@@ -22,10 +23,13 @@ export default defineSchema({
       v.literal("refunded"),
       v.literal("cancelled")
     ),
+    paymentIntentId: v.optional(v.string()),
+    amount: v.optional(v.number()),
   })
     .index("by_event", ["eventId"])
     .index("by_user", ["userId"])
-    .index("by_user_event", ["userId", "eventId"]),
+    .index("by_user_event", ["userId", "eventId"])
+    .index("by_payment_intent", ["paymentIntentId"]),
 
   waitingList: defineTable({
     eventId: v.id("events"),

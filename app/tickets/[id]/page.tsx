@@ -1,31 +1,38 @@
-import { getConvexClient } from "@/lib/convex";
+"use client";
+
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
+import { useQuery } from "convex/react";
+import { useUser } from "@clerk/nextjs";
+import { redirect, useParams } from "next/navigation";
 import Ticket from "@/components/Ticket";
 import Link from "next/link";
 import { ArrowLeft, Download, Share2 } from "lucide-react";
+import { useEffect } from "react";
 
-export default async function TicketPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const { userId } = await auth();
-  if (!userId) redirect("/");
-
-  const convex = getConvexClient();
-  const ticket = await convex.query(api.tickets.getTicketWithDetails, {
+export default function TicketPage() {
+  const params = useParams();
+  const { user } = useUser();
+  const ticket = useQuery(api.tickets.getTicketWithDetails, {
     ticketId: params.id as Id<"tickets">,
   });
 
-  if (!ticket || ticket.userId !== userId) {
-    redirect("/tickets");
-  }
+  useEffect(() => {
+    if (!user) {
+      redirect("/");
+    }
 
-  if (!ticket.event) {
-    redirect("/tickets");
+    if (!ticket || ticket.userId !== user.id) {
+      redirect("/tickets");
+    }
+
+    if (!ticket.event) {
+      redirect("/tickets");
+    }
+  }, [user, ticket]);
+
+  if (!ticket || !ticket.event) {
+    return null;
   }
 
   return (
@@ -54,7 +61,9 @@ export default async function TicketPage({
           </div>
 
           {/* Event Info Summary */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+          <div
+            className={`bg-white p-6 rounded-lg shadow-sm border ${ticket.event.is_cancelled ? "border-red-200" : "border-gray-100"}`}
+          >
             <h1 className="text-2xl font-bold text-gray-900">
               {ticket.event.name}
             </h1>
@@ -63,13 +72,25 @@ export default async function TicketPage({
               {ticket.event.location}
             </p>
             <div className="mt-4 flex items-center gap-4">
-              <span className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm font-medium">
-                Valid Ticket
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  ticket.event.is_cancelled
+                    ? "bg-red-50 text-red-700"
+                    : "bg-green-50 text-green-700"
+                }`}
+              >
+                {ticket.event.is_cancelled ? "Cancelled" : "Valid Ticket"}
               </span>
               <span className="text-sm text-gray-500">
                 Purchased on {new Date(ticket.purchasedAt).toLocaleDateString()}
               </span>
             </div>
+            {ticket.event.is_cancelled && (
+              <p className="mt-4 text-sm text-red-600">
+                This event has been cancelled. A refund will be processed if it
+                hasn't been already.
+              </p>
+            )}
           </div>
         </div>
 
@@ -77,11 +98,28 @@ export default async function TicketPage({
         <Ticket ticketId={ticket._id} />
 
         {/* Additional Information */}
-        <div className="mt-8 bg-blue-50 border border-blue-100 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-blue-900">Need Help?</h3>
-          <p className="mt-1 text-sm text-blue-700">
-            If you have any issues with your ticket, please contact our support
-            team at team@papareact-tickr.com
+        <div
+          className={`mt-8 rounded-lg p-4 ${
+            ticket.event.is_cancelled
+              ? "bg-red-50 border-red-100 border"
+              : "bg-blue-50 border-blue-100 border"
+          }`}
+        >
+          <h3
+            className={`text-sm font-medium ${
+              ticket.event.is_cancelled ? "text-red-900" : "text-blue-900"
+            }`}
+          >
+            Need Help?
+          </h3>
+          <p
+            className={`mt-1 text-sm ${
+              ticket.event.is_cancelled ? "text-red-700" : "text-blue-700"
+            }`}
+          >
+            {ticket.event.is_cancelled
+              ? "For questions about refunds or cancellations, please contact our support team at team@papareact-tickr.com"
+              : "If you have any issues with your ticket, please contact our support team at team@papareact-tickr.com"}
           </p>
         </div>
       </div>

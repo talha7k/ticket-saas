@@ -1,15 +1,16 @@
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { getConvexClient } from "@/lib/convex";
 import { api } from "@/convex/_generated/api";
+import Stripe from "stripe";
+import { StripeCheckoutMetaData } from "@/app/actions/createStripeCheckoutSession";
 
 export async function POST(req: Request) {
   const body = await req.text();
   const headersList = await headers();
-  const signature = headersList.get("Stripe-Signature") as string;
+  const signature = headersList.get("stripe-signature") as string;
 
-  let event;
+  let event: Stripe.Event;
 
   try {
     event = stripe.webhooks.constructEvent(
@@ -18,34 +19,33 @@ export async function POST(req: Request) {
       process.env.STRIPE_WEBHOOK_SECRET!
     );
   } catch (err) {
-    return new NextResponse(
-      `Webhook Error: ${err instanceof Error ? err.message : "Unknown Error"}`,
-      { status: 400 }
-    );
+    return new Response(`Webhook Error: ${(err as Error).message}`, {
+      status: 400,
+    });
   }
 
-  const session = event.data.object as any;
+  const convex = getConvexClient();
 
   if (event.type === "checkout.session.completed") {
-    const convex = getConvexClient();
-
-    // Get metadata from the session
-    const { eventId, userId, waitingListId } = session.metadata;
+    const session = event.data.object as Stripe.Checkout.Session;
+    const metadata = session.metadata as StripeCheckoutMetaData;
 
     try {
-      // Purchase the ticket in Convex
+      // Create ticket with payment info included
       await convex.mutation(api.events.purchaseTicket, {
-        eventId,
-        userId,
-        waitingListId,
+        eventId: metadata.eventId,
+        userId: metadata.userId,
+        waitingListId: metadata.waitingListId,
+        paymentInfo: {
+          paymentIntentId: session.payment_intent as string,
+          amount: session.amount_total ?? 0,
+        },
       });
     } catch (error) {
-      console.error("Error processing ticket purchase:", error);
-      return new NextResponse("Error processing ticket purchase", {
-        status: 500,
-      });
+      console.error("Error processing webhook:", error);
+      return new Response("Error processing webhook", { status: 500 });
     }
   }
 
-  return new NextResponse(null, { status: 200 });
+  return new Response(null, { status: 200 });
 }
