@@ -7,6 +7,7 @@ import { WAITING_LIST_STATUS } from "@/convex/constants";
 import Spinner from "./Spinner";
 import { Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ConvexError } from "convex/values";
 
 export default function JoinQueue({
   eventId,
@@ -36,13 +37,14 @@ export default function JoinQueue({
       }
     } catch (error) {
       if (
-        error instanceof Error &&
-        error.message.includes("Too many queue joins")
+        error instanceof ConvexError &&
+        error.message.includes("joined the waiting list too many times")
       ) {
         toast({
           variant: "destructive",
-          title: "Uh oh! Something went wrong.",
-          description: error.message,
+          title: "Slow down there!",
+          description: error.data,
+          duration: 5000,
         });
       } else {
         console.error("Error joining waiting list:", error);

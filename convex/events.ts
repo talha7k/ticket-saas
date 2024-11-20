@@ -1,5 +1,5 @@
 import { query, mutation } from "./_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { DURATIONS, WAITING_LIST_STATUS, TICKET_STATUS } from "./constants";
 import { components, internal } from "./_generated/api";
 import { processQueue } from "./waitingList";
@@ -105,8 +105,8 @@ export const joinWaitingList = mutation({
     // Rate limit check
     const status = await rateLimiter.limit(ctx, "queueJoin", { key: userId });
     if (!status.ok) {
-      throw new Error(
-        `Too many queue joins. Please wait ${Math.ceil(
+      throw new ConvexError(
+        `You've joined the waiting list too many times. Please wait ${Math.ceil(
           status.retryAfter / (60 * 1000)
         )} minutes before trying again.`
       );
