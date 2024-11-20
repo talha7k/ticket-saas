@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { hostname: "upbeat-stoat-959.convex.cloud", protocol: "https" },
+      { hostname: "wary-anaconda-29.convex.cloud", protocol: "https" },
     ],
   },
 };
