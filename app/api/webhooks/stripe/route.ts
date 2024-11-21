@@ -6,19 +6,26 @@ import Stripe from "stripe";
 import { StripeCheckoutMetaData } from "@/app/actions/createStripeCheckoutSession";
 
 export async function POST(req: Request) {
+  console.log("Webhook received");
+
   const body = await req.text();
   const headersList = await headers();
   const signature = headersList.get("stripe-signature") as string;
 
+  console.log("Webhook signature:", signature ? "Present" : "Missing");
+
   let event: Stripe.Event;
 
   try {
+    console.log("Attempting to construct webhook event");
     event = stripe.webhooks.constructEvent(
       body,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
     );
+    console.log("Webhook event constructed successfully:", event.type);
   } catch (err) {
+    console.error("Webhook construction failed:", err);
     return new Response(`Webhook Error: ${(err as Error).message}`, {
       status: 400,
     });
@@ -27,12 +34,14 @@ export async function POST(req: Request) {
   const convex = getConvexClient();
 
   if (event.type === "checkout.session.completed") {
+    console.log("Processing checkout.session.completed");
     const session = event.data.object as Stripe.Checkout.Session;
     const metadata = session.metadata as StripeCheckoutMetaData;
+    console.log("Session metadata:", metadata);
+    console.log("Convex client:", convex);
 
     try {
-      // Create ticket with payment info included
-      await convex.mutation(api.events.purchaseTicket, {
+      const result = await convex.mutation(api.events.purchaseTicket, {
         eventId: metadata.eventId,
         userId: metadata.userId,
         waitingListId: metadata.waitingListId,
@@ -41,6 +50,7 @@ export async function POST(req: Request) {
           amount: session.amount_total ?? 0,
         },
       });
+      console.log("Purchase ticket mutation completed:", result);
     } catch (error) {
       console.error("Error processing webhook:", error);
       return new Response("Error processing webhook", { status: 500 });
