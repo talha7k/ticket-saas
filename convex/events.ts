@@ -1,9 +1,11 @@
 import { query, mutation } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import { DURATIONS, WAITING_LIST_STATUS, TICKET_STATUS } from "./constants";
-import { components, internal } from "./_generated/api";
-import { processQueue } from "./waitingList";
+import { api, components, internal } from "./_generated/api";
+// Removed: import { processQueue } from "./waitingList"; // Will use api.waitingList.processQueue
 import { MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
+import type { Id } from "./_generated/dataModel";
+
 
 export type Metrics = {
   soldTickets: number;
@@ -69,7 +71,6 @@ export const checkAvailability = query({
     const event = await ctx.db.get(eventId);
     if (!event) throw new Error("Event not found");
 
-    // Count total purchased tickets
     const purchasedCount = await ctx.db
       .query("tickets")
       .withIndex("by_event", (q) => q.eq("eventId", eventId))
@@ -83,7 +84,6 @@ export const checkAvailability = query({
           ).length
       );
 
-    // Count current valid offers
     const now = Date.now();
     const activeOffers = await ctx.db
       .query("waitingList")
@@ -107,23 +107,28 @@ export const checkAvailability = query({
   },
 });
 
+// Define the return type for the joinWaitingList handler
+type JoinWaitingListHandlerResult = {
+  success: boolean;
+  // Assuming WAITING_LIST_STATUS values are specific string literals (e.g., from 'as const')
+  status: (typeof WAITING_LIST_STATUS.OFFERED) | (typeof WAITING_LIST_STATUS.WAITING);
+  message: string;
+};
+
 // Join waiting list for an event
 export const joinWaitingList = mutation({
-  // Function takes an event ID and user ID as arguments
   args: { eventId: v.id("events"), userId: v.string() },
-  handler: async (ctx, { eventId, userId }) => {
+  handler: async (ctx, { eventId, userId }): Promise<JoinWaitingListHandlerResult> => {
     // Rate limit check
-    const status = await rateLimiter.limit(ctx, "queueJoin", { key: userId });
-    if (!status.ok) {
+    const rateLimitOpStatus = await rateLimiter.limit(ctx, "queueJoin", { key: userId });
+    if (!rateLimitOpStatus.ok) {
       throw new ConvexError(
         `You've joined the waiting list too many times. Please wait ${Math.ceil(
-          status.retryAfter / (60 * 1000)
+          rateLimitOpStatus.retryAfter / (60 * 1000)
         )} minutes before trying again.`
       );
     }
 
-    // First check if user already has an active entry in waiting list for this event
-    // Active means any status except EXPIRED
     const existingEntry = await ctx.db
       .query("waitingList")
       .withIndex("by_user_event", (q) =>
@@ -132,30 +137,28 @@ export const joinWaitingList = mutation({
       .filter((q) => q.neq(q.field("status"), WAITING_LIST_STATUS.EXPIRED))
       .first();
 
-    // Don't allow duplicate entries
     if (existingEntry) {
       throw new Error("Already in waiting list for this event");
     }
 
-    // Verify the event exists
     const event = await ctx.db.get(eventId);
     if (!event) throw new Error("Event not found");
 
-    // Check if there are any available tickets right now
-    const { available } = await checkAvailability(ctx, { eventId });
+    // Explicitly type the destructured 'available' property
+    const { available }: { available: boolean } = await ctx.runQuery(api.events.checkAvailability, {
+      eventId,
+    });
 
     const now = Date.now();
 
     if (available) {
-      // If tickets are available, create an offer entry
       const waitingListId = await ctx.db.insert("waitingList", {
         eventId,
         userId,
-        status: WAITING_LIST_STATUS.OFFERED, // Mark as offered
-        offerExpiresAt: now + DURATIONS.TICKET_OFFER, // Set expiration time
+        status: WAITING_LIST_STATUS.OFFERED,
+        offerExpiresAt: now + DURATIONS.TICKET_OFFER,
       });
 
-      // Schedule a job to expire this offer after the offer duration
       await ctx.scheduler.runAfter(
         DURATIONS.TICKET_OFFER,
         internal.waitingList.expireOffer,
@@ -165,20 +168,18 @@ export const joinWaitingList = mutation({
         }
       );
     } else {
-      // If no tickets available, add to waiting list
       await ctx.db.insert("waitingList", {
         eventId,
         userId,
-        status: WAITING_LIST_STATUS.WAITING, // Mark as waiting
+        status: WAITING_LIST_STATUS.WAITING,
       });
     }
 
-    // Return appropriate status message
     return {
       success: true,
       status: available
-        ? WAITING_LIST_STATUS.OFFERED // If available, status is offered
-        : WAITING_LIST_STATUS.WAITING, // If not available, status is waiting
+        ? WAITING_LIST_STATUS.OFFERED
+        : WAITING_LIST_STATUS.WAITING,
       message: available
         ? "Ticket offered - you have 15 minutes to purchase"
         : "Added to waiting list - you'll be notified when a ticket becomes available",
@@ -204,7 +205,6 @@ export const purchaseTicket = mutation({
       waitingListId,
     });
 
-    // Verify waiting list entry exists and is valid
     const waitingListEntry = await ctx.db.get(waitingListId);
     console.log("Waiting list entry:", waitingListEntry);
 
@@ -230,7 +230,6 @@ export const purchaseTicket = mutation({
       throw new Error("Waiting list entry does not belong to this user");
     }
 
-    // Verify event exists and is active
     const event = await ctx.db.get(eventId);
     console.log("Event details:", event);
 
@@ -246,7 +245,6 @@ export const purchaseTicket = mutation({
 
     try {
       console.log("Creating ticket with payment info", paymentInfo);
-      // Create ticket with payment info
       await ctx.db.insert("tickets", {
         eventId,
         userId,
@@ -262,13 +260,13 @@ export const purchaseTicket = mutation({
       });
 
       console.log("Processing queue for next person");
-      // Process queue for next person
-      await processQueue(ctx, { eventId });
+      // Corrected call to processQueue
+      await ctx.runMutation(api.waitingList.processQueue, { eventId });
 
       console.log("Purchase ticket completed successfully");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to complete ticket purchase:", error);
-      throw new Error(`Failed to complete ticket purchase: ${error}`);
+      throw new Error(`Failed to complete ticket purchase: ${error.message || String(error)}`);
     }
   },
 });
@@ -325,7 +323,6 @@ export const getEventAvailability = query({
     const event = await ctx.db.get(eventId);
     if (!event) throw new Error("Event not found");
 
-    // Count total purchased tickets
     const purchasedCount = await ctx.db
       .query("tickets")
       .withIndex("by_event", (q) => q.eq("eventId", eventId))
@@ -339,7 +336,6 @@ export const getEventAvailability = query({
           ).length
       );
 
-    // Count current valid offers
     const now = Date.now();
     const activeOffers = await ctx.db
       .query("waitingList")
@@ -390,7 +386,6 @@ export const getSellerEvents = query({
       .filter((q) => q.eq(q.field("userId"), userId))
       .collect();
 
-    // For each event, get ticket sales data
     const eventsWithMetrics = await Promise.all(
       events.map(async (event) => {
         const tickets = await ctx.db
@@ -437,7 +432,6 @@ export const updateEvent = mutation({
   handler: async (ctx, args) => {
     const { eventId, ...updates } = args;
 
-    // Get current event to check tickets sold
     const event = await ctx.db.get(eventId);
     if (!event) throw new Error("Event not found");
 
@@ -449,7 +443,6 @@ export const updateEvent = mutation({
       )
       .collect();
 
-    // Ensure new total tickets is not less than sold tickets
     if (updates.totalTickets < soldTickets.length) {
       throw new Error(
         `Cannot reduce total tickets below ${soldTickets.length} (number of tickets already sold)`
@@ -467,7 +460,6 @@ export const cancelEvent = mutation({
     const event = await ctx.db.get(eventId);
     if (!event) throw new Error("Event not found");
 
-    // Get all valid tickets for this event
     const tickets = await ctx.db
       .query("tickets")
       .withIndex("by_event", (q) => q.eq("eventId", eventId))
@@ -482,12 +474,10 @@ export const cancelEvent = mutation({
       );
     }
 
-    // Mark event as cancelled
     await ctx.db.patch(eventId, {
       is_cancelled: true,
     });
 
-    // Delete any waiting list entries
     const waitingListEntries = await ctx.db
       .query("waitingList")
       .withIndex("by_event_status", (q) => q.eq("eventId", eventId))

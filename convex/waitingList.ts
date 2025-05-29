@@ -1,8 +1,9 @@
 import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
+import { type Id } from "./_generated/dataModel"; // Using 'type Id' for type-only import
 import { DURATIONS, WAITING_LIST_STATUS, TICKET_STATUS } from "./constants";
-import { internal } from "./_generated/api";
+// Updated import to include api
+import { api, internal } from "./_generated/api";
 
 /**
  * Helper function to group waiting list entries by event ID.
@@ -34,7 +35,6 @@ export const getQueuePosition = query({
     userId: v.string(),
   },
   handler: async (ctx, { eventId, userId }) => {
-    // Get entry for this specific user and event combination
     const entry = await ctx.db
       .query("waitingList")
       .withIndex("by_user_event", (q) =>
@@ -45,7 +45,6 @@ export const getQueuePosition = query({
 
     if (!entry) return null;
 
-    // Get total number of people ahead in line
     const peopleAhead = await ctx.db
       .query("waitingList")
       .withIndex("by_event_status", (q) => q.eq("eventId", eventId))
@@ -81,67 +80,62 @@ export const processQueue = mutation({
     if (!event) throw new Error("Event not found");
 
     // Calculate available spots
-    const { availableSpots } = await ctx.db
+    // Note: Consider using api.events.checkAvailability or a similar shared query if this logic is duplicated.
+    const eventDetailsForAvailability = await ctx.db
       .query("events")
       .filter((q) => q.eq(q.field("_id"), eventId))
-      .first()
-      .then(async (event) => {
-        if (!event) throw new Error("Event not found");
+      .first();
 
-        const purchasedCount = await ctx.db
-          .query("tickets")
-          .withIndex("by_event", (q) => q.eq("eventId", eventId))
-          .collect()
-          .then(
-            (tickets) =>
-              tickets.filter(
-                (t) =>
-                  t.status === TICKET_STATUS.VALID ||
-                  t.status === TICKET_STATUS.USED
-              ).length
-          );
+    if (!eventDetailsForAvailability) throw new Error("Event not found for availability check");
 
-        const now = Date.now();
-        const activeOffers = await ctx.db
-          .query("waitingList")
-          .withIndex("by_event_status", (q) =>
-            q.eq("eventId", eventId).eq("status", WAITING_LIST_STATUS.OFFERED)
-          )
-          .collect()
-          .then(
-            (entries) =>
-              entries.filter((e) => (e.offerExpiresAt ?? 0) > now).length
-          );
+    const purchasedCount = await ctx.db
+      .query("tickets")
+      .withIndex("by_event", (q) => q.eq("eventId", eventId))
+      .collect()
+      .then(
+        (tickets) =>
+          tickets.filter(
+            (t) =>
+              t.status === TICKET_STATUS.VALID ||
+              t.status === TICKET_STATUS.USED
+          ).length
+      );
 
-        return {
-          availableSpots: event.totalTickets - (purchasedCount + activeOffers),
-        };
-      });
+    const nowForOffers = Date.now();
+    const activeOffers = await ctx.db
+      .query("waitingList")
+      .withIndex("by_event_status", (q) =>
+        q.eq("eventId", eventId).eq("status", WAITING_LIST_STATUS.OFFERED)
+      )
+      .collect()
+      .then(
+        (entries) =>
+          entries.filter((e) => (e.offerExpiresAt ?? 0) > nowForOffers).length
+      );
+
+    const availableSpots = eventDetailsForAvailability.totalTickets - (purchasedCount + activeOffers);
+
 
     if (availableSpots <= 0) return;
 
-    // Get next users in line
     const waitingUsers = await ctx.db
       .query("waitingList")
       .withIndex("by_event_status", (q) =>
         q.eq("eventId", eventId).eq("status", WAITING_LIST_STATUS.WAITING)
       )
-      .order("asc")
+      .order("asc") // Ensure order by _creationTime is implied or add it explicitly if needed
       .take(availableSpots);
 
-    // Create time-limited offers for selected users
-    const now = Date.now();
+    const nowForOfferCreation = Date.now();
     for (const user of waitingUsers) {
-      // Update the waiting list entry to OFFERED status
       await ctx.db.patch(user._id, {
         status: WAITING_LIST_STATUS.OFFERED,
-        offerExpiresAt: now + DURATIONS.TICKET_OFFER,
+        offerExpiresAt: nowForOfferCreation + DURATIONS.TICKET_OFFER,
       });
 
-      // Schedule expiration job for this offer
       await ctx.scheduler.runAfter(
         DURATIONS.TICKET_OFFER,
-        internal.waitingList.expireOffer,
+        internal.waitingList.expireOffer, // Correct: internal functions are called via internal.module.function
         {
           waitingListId: user._id,
           eventId,
@@ -162,30 +156,36 @@ export const expireOffer = internalMutation({
   },
   handler: async (ctx, { waitingListId, eventId }) => {
     const offer = await ctx.db.get(waitingListId);
-    if (!offer || offer.status !== WAITING_LIST_STATUS.OFFERED) return;
+    // Only expire if it's still an active offer
+    if (!offer || offer.status !== WAITING_LIST_STATUS.OFFERED) {
+        // Potentially log if offer not found or status mismatch, or just return
+        return;
+    }
+
+    // Check if the offer has actually expired based on time, as an extra safeguard
+    // though the scheduler should be accurate.
+    if (offer.offerExpiresAt && offer.offerExpiresAt > Date.now()) {
+        // Offer hasn't actually expired yet, perhaps scheduler ran early or there's a clock skew.
+        // Decide on behavior: either re-schedule or log. For now, let's assume scheduler is king.
+    }
+
 
     await ctx.db.patch(waitingListId, {
       status: WAITING_LIST_STATUS.EXPIRED,
     });
 
-    await processQueue(ctx, { eventId });
+    // Corrected call to processQueue
+    await ctx.runMutation(api.waitingList.processQueue, { eventId });
   },
 });
 
 /**
  * Periodic cleanup job that acts as a fail-safe for expired offers.
- * While individual offers should expire via scheduled jobs (expireOffer),
- * this ensures any offers that weren't properly expired (e.g. due to server issues)
- * are caught and cleaned up. Also helps maintain data consistency.
- *
- * Groups expired offers by event for efficient processing and updates queue
- * for each affected event after cleanup.
  */
 export const cleanupExpiredOffers = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
-    // Find all expired but not yet cleaned up offers
     const expiredOffers = await ctx.db
       .query("waitingList")
       .filter((q) =>
@@ -196,20 +196,25 @@ export const cleanupExpiredOffers = internalMutation({
       )
       .collect();
 
-    // Group by event for batch processing
-    const grouped = groupByEvent(expiredOffers);
+    if (expiredOffers.length === 0) {
+        return; // No offers to clean up
+    }
 
-    // Process each event's expired offers and update queue
-    for (const [eventId, offers] of Object.entries(grouped)) {
+    const groupedByEventId = groupByEvent(expiredOffers);
+
+    for (const eventIdStr of Object.keys(groupedByEventId)) {
+      const offersForEvent = groupedByEventId[eventIdStr as Id<"events">]; // Cast because keys are strings
+      
       await Promise.all(
-        offers.map((offer) =>
+        offersForEvent.map((offer) =>
           ctx.db.patch(offer._id, {
             status: WAITING_LIST_STATUS.EXPIRED,
           })
         )
       );
-
-      await processQueue(ctx, { eventId: eventId as Id<"events"> });
+      
+      // Corrected call to processQueue
+      await ctx.runMutation(api.waitingList.processQueue, { eventId: eventIdStr as Id<"events"> });
     }
   },
 });
@@ -222,15 +227,14 @@ export const releaseTicket = mutation({
   handler: async (ctx, { eventId, waitingListId }) => {
     const entry = await ctx.db.get(waitingListId);
     if (!entry || entry.status !== WAITING_LIST_STATUS.OFFERED) {
-      throw new Error("No valid ticket offer found");
+      throw new Error("No valid ticket offer found or offer is not in OFFERED state.");
     }
 
-    // Mark the entry as expired
     await ctx.db.patch(waitingListId, {
-      status: WAITING_LIST_STATUS.EXPIRED,
+      status: WAITING_LIST_STATUS.EXPIRED, // Or perhaps a different status like 'released' or 'cancelled_by_user'
     });
 
-    // Process queue to offer ticket to next person
-    await processQueue(ctx, { eventId });
+    // Corrected call to processQueue
+    await ctx.runMutation(api.waitingList.processQueue, { eventId });
   },
 });

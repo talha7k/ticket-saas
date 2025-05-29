@@ -93,7 +93,7 @@ export default function EventForm({ mode, initialData }: EventFormProps) {
 
     startTransition(async () => {
       try {
-        let imageStorageId = null;
+        let imageStorageId: string | null = null;
 
         // Handle image changes
         if (selectedImage) {
