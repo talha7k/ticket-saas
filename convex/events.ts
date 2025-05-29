@@ -4,8 +4,6 @@ import { DURATIONS, WAITING_LIST_STATUS, TICKET_STATUS } from "./constants";
 import { api, components, internal } from "./_generated/api";
 // Removed: import { processQueue } from "./waitingList"; // Will use api.waitingList.processQueue
 import { MINUTE, RateLimiter } from "@convex-dev/rate-limiter";
-import type { Id } from "./_generated/dataModel";
-
 
 export type Metrics = {
   soldTickets: number;
